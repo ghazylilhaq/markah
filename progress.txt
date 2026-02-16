@@ -17,6 +17,8 @@
 - Sidebar is a client component (`components/sidebar.tsx`) that reads `?folder=` query param for active state.
 - Mobile sidebar uses shadcn/ui Sheet component (left side) with hamburger menu trigger.
 - Folder tree built from flat Prisma query via `buildFolderTree()` helper in dashboard layout.
+- Sonner (toast) installed as shadcn/ui component; Toaster added to root `app/layout.tsx`. Use `toast()` from `sonner` package.
+- Bookmark server actions in `lib/actions/bookmark.ts` — use `requireUser()` for auth.
 ---
 
 ## 2026-02-17 - US-002
@@ -125,4 +127,20 @@
   - Folder tree built from flat DB query using parentId→children mapping
   - Sheet component from shadcn/ui uses Radix Dialog internally; must include SheetTitle for accessibility
   - signOut from next-auth/react with `{ redirectTo: "/" }` for post-logout redirect
+---
+
+## 2026-02-17 - US-010
+- What was implemented: Quick-add bookmark URL bar at top of dashboard
+- Files changed:
+  - `lib/actions/bookmark.ts` — Server action: addBookmark creates bookmark, checks duplicates, async metadata fetch
+  - `components/quick-add-bar.tsx` — Client component: URL input with loading state, URL validation/normalization, toast on duplicate
+  - `components/ui/sonner.tsx` — Sonner toast component (shadcn/ui)
+  - `app/layout.tsx` — Added Toaster to root layout
+  - `app/dashboard/page.tsx` — Integrated QuickAddBar component
+  - `prd.json` — Marked US-010 as passes: true
+- **Learnings for future iterations:**
+  - Sonner toast: import `toast` from `sonner` package, `Toaster` component from `components/ui/sonner.tsx`
+  - Server actions can fire-and-forget async operations (metadata fetch) by calling `.catch()` without awaiting
+  - URL normalization: prepend `https://` if no protocol, validate with `new URL()` constructor
+  - `router.refresh()` from `next/navigation` triggers server component re-render to show updated data
 ---

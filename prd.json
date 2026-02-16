@@ -180,8 +180,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 10,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "QuickAddBar component at components/quick-add-bar.tsx. Server action addBookmark in lib/actions/bookmark.ts creates bookmark then fetches metadata asynchronously. Duplicate URL detection returns toast with existing bookmark title. Sonner toast added to root layout. URL normalization prepends https:// if missing."
     },
     {
       "id": "US-011",
