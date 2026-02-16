@@ -1,0 +1,24 @@
+## Codebase Patterns
+- Use Prisma v6 (not v7) — v7 requires a `prisma.config.ts` and removed `url` from schema datasource
+- PostgreSQL runs in Docker container `pomo-city-postgres-1` with user `pomo`, password `pomo` on port 5432
+- Prisma client singleton is at `lib/prisma.ts` — import from `@/lib/prisma`
+- Project uses bun as package manager, Next.js 16, shadcn/ui, Tailwind v4
+- Path alias `@/*` maps to project root
+
+# Ralph Progress Log
+Started: Tue Feb 17 02:05:07 WIB 2026
+---
+
+## 2026-02-17 - US-001
+- Implemented Prisma schema with all 6 models: User, Bookmark, Folder, Tag, BookmarkTag, BookmarkFolder
+- All models include required fields per acceptance criteria (isFavorite, isPublic, shareId, visitCount, etc.)
+- Self-referential Folder relation for nested folders (parentId)
+- Unique constraints on User.email and Tag [name, userId]
+- Created Prisma client singleton at lib/prisma.ts
+- Migration ran successfully against PostgreSQL
+- Files changed: package.json, bun.lock, prisma/schema.prisma, prisma/migrations/*, lib/prisma.ts
+- **Learnings for future iterations:**
+  - Prisma v7 removed `url` from datasource block — use v6 to avoid needing prisma.config.ts
+  - Local PostgreSQL is in Docker (pomo-city-postgres-1), user=pomo, pass=pomo — needed to create markah DB manually
+  - .env needs DATABASE_URL with pomo credentials, not default postgres/postgres
+---

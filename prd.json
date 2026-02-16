@@ -19,8 +19,8 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Prisma v6 used (v7 requires config file migration). DB connects to existing docker postgres with user pomo."
     },
     {
       "id": "US-002",
