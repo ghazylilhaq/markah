@@ -55,8 +55,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Registration page at /register using shadcn/ui Card, Input, Label, Button. Auth layout in (auth) route group. Client-side validation for 8-char min password."
     },
     {
       "id": "US-004",
@@ -73,8 +73,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Login page at /login using signIn from next-auth/react with redirect:false. Same Card layout as registration. Redirects to /dashboard on success."
     },
     {
       "id": "US-005",

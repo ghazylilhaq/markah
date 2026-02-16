@@ -8,6 +8,8 @@
 - Path alias: `@/*` maps to project root.
 - shadcn/ui with "new-york" style, stone base color, lucide icons.
 - Tailwind CSS v4 with PostCSS plugin.
+- Auth pages use `(auth)` route group with centered layout in `app/(auth)/layout.tsx`.
+- `next lint` command doesn't work (Next.js 16 changed CLI); use `npx eslint` directly instead.
 ---
 
 ## 2026-02-17 - US-002
@@ -25,4 +27,31 @@
   - Credentials provider uses JWT strategy (not database sessions)
   - The `authorize` callback in credentials provider must return `null` for invalid credentials (not throw)
   - Session callback chain: user → jwt callback (adds id to token) → session callback (adds id to session.user)
+---
+
+## 2026-02-17 - US-003
+- What was implemented: Registration page UI at /register
+- Files changed:
+  - `app/(auth)/layout.tsx` — Shared auth layout with centered card design
+  - `app/(auth)/register/page.tsx` — Registration form with email/password, validation, error handling
+  - `components/ui/button.tsx` — shadcn/ui Button component
+  - `components/ui/input.tsx` — shadcn/ui Input component
+  - `components/ui/label.tsx` — shadcn/ui Label component
+  - `components/ui/card.tsx` — shadcn/ui Card component
+- **Learnings for future iterations:**
+  - shadcn/ui components installed via `npx shadcn@latest add <component> --yes`
+  - Auth pages use (auth) route group for shared centered layout
+  - `next lint` doesn't work in Next.js 16; use `npx eslint` directly
+  - Registration uses existing `registerUser` server action from `lib/actions/auth.ts`
+---
+
+## 2026-02-17 - US-004
+- What was implemented: Login page UI at /login
+- Files changed:
+  - `app/(auth)/login/page.tsx` — Login form with email/password, NextAuth signIn, error handling
+- **Learnings for future iterations:**
+  - Use `signIn("credentials", { ..., redirect: false })` from `next-auth/react` for client-side login with error handling
+  - `signIn` returns `{ error: string | undefined }` — check `result?.error` to show error messages
+  - Login page reuses same (auth) layout and shadcn/ui Card pattern as registration
+  - `autoComplete="current-password"` for login vs `autoComplete="new-password"` for registration
 ---
