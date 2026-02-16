@@ -161,8 +161,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 9,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Dashboard layout at /dashboard with 250px fixed sidebar on desktop, Sheet-based hamburger menu on mobile (<768px). Sidebar shows All Bookmarks, Favorites, Unsorted virtual folders plus user's folder tree. Header displays app name, user email, and logout button. Server component layout fetches user and folders, passes to client DashboardShell component."
     },
     {
       "id": "US-010",

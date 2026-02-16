@@ -13,6 +13,10 @@
 - `next lint` command doesn't work (Next.js 16 changed CLI); use `npx eslint` directly instead.
 - Auth middleware at `middleware.ts` uses `auth()` from `lib/auth.ts` — public routes: `/`, `/login`, `/register`, `/share/*`.
 - Services go in `lib/services/` directory — use `"use server"` directive for server-side-only code.
+- Dashboard layout uses server component (`app/dashboard/layout.tsx`) to fetch data, passes to client `DashboardShell` component.
+- Sidebar is a client component (`components/sidebar.tsx`) that reads `?folder=` query param for active state.
+- Mobile sidebar uses shadcn/ui Sheet component (left side) with hamburger menu trigger.
+- Folder tree built from flat Prisma query via `buildFolderTree()` helper in dashboard layout.
 ---
 
 ## 2026-02-17 - US-002
@@ -105,4 +109,20 @@
   - Meta tags can have property/name and content in either order — regex must handle both
   - Relative URLs in og:image and favicon href need resolving against the base URL
   - Graceful fallback: hostname extracted from URL used as title when fetch fails entirely
+---
+
+## 2026-02-17 - US-009
+- What was implemented: Dashboard layout with fixed sidebar and responsive mobile menu
+- Files changed:
+  - `app/dashboard/layout.tsx` — Server component: fetches user + folders, builds folder tree, passes to DashboardShell
+  - `app/dashboard/page.tsx` — Placeholder dashboard page
+  - `components/dashboard-shell.tsx` — Client component: sidebar (desktop), Sheet sidebar (mobile), header with user email + logout
+  - `components/sidebar.tsx` — Client component: virtual folders (All, Favorites, Unsorted) + user folder tree with nesting
+  - `components/ui/sheet.tsx` — shadcn/ui Sheet component (installed)
+- **Learnings for future iterations:**
+  - Dashboard uses server→client component split: layout.tsx (server) fetches data, DashboardShell (client) handles interactivity
+  - Sidebar active state based on `?folder=` search param, not pathname
+  - Folder tree built from flat DB query using parentId→children mapping
+  - Sheet component from shadcn/ui uses Radix Dialog internally; must include SheetTitle for accessibility
+  - signOut from next-auth/react with `{ redirectTo: "/" }` for post-logout redirect
 ---
