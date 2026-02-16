@@ -104,8 +104,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 6,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Landing page at / with hero, features grid, placeholder illustration area. Header has Sign In link to /login. Get Started CTA links to /register. Uses lucide-react icons, stone color palette, shadcn/ui Button. Responsive layout."
     },
     {
       "id": "US-007",

@@ -68,3 +68,14 @@
   - Public routes: `/`, `/login`, `/register`, `/share/*`
   - Auth routes (`/login`, `/register`) redirect to `/dashboard` when already authenticated
 ---
+
+## 2026-02-17 - US-006
+- What was implemented: Landing page at / with hero section, features grid, and placeholder illustration area
+- Files changed:
+  - `app/page.tsx` — Complete rewrite: hero section with app name, description, Get Started CTA, Sign In link, placeholder illustration, 6 feature cards, footer
+  - `app/layout.tsx` — Updated metadata title and description for Markah
+- **Learnings for future iterations:**
+  - Landing page uses lucide-react icons (Bookmark, FolderOpen, Search, Share2, Sparkles, Tag) — already available in project
+  - stone color palette consistent with auth pages (bg-stone-50, text-stone-900, etc.)
+  - FeatureCard is a local component in page.tsx — no need for separate file for single-use components
+---
