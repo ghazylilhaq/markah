@@ -1,0 +1,28 @@
+## Codebase Patterns
+- Prisma v6 used (not v7). DB connects to local PostgreSQL with user pomo/pomo.
+- NextAuth.js v5 (beta.30) with JWT strategy and credentials provider — no Prisma adapter (custom User model).
+- Auth config lives in `lib/auth.ts`, exports `{ handlers, signIn, signOut, auth }`.
+- Session helper functions in `lib/session.ts` — use `getCurrentUser()` or `requireUser()` for auth checks.
+- Server actions go in `lib/actions/` directory.
+- Type augmentations for next-auth in `types/next-auth.d.ts`.
+- Path alias: `@/*` maps to project root.
+- shadcn/ui with "new-york" style, stone base color, lucide icons.
+- Tailwind CSS v4 with PostCSS plugin.
+---
+
+## 2026-02-17 - US-002
+- What was implemented: NextAuth.js v5 credentials authentication setup
+- Files changed:
+  - `lib/auth.ts` — NextAuth config with credentials provider, JWT callbacks
+  - `lib/session.ts` — getCurrentUser() and requireUser() helper functions
+  - `lib/actions/auth.ts` — registerUser() server action with bcrypt hashing
+  - `app/api/auth/[...nextauth]/route.ts` — API route handler
+  - `types/next-auth.d.ts` — Session type augmentation to include user.id
+  - `package.json` — Added next-auth, bcryptjs, @types/bcryptjs
+  - `.env` — Added NEXTAUTH_SECRET
+- **Learnings for future iterations:**
+  - NextAuth v5 doesn't need Prisma adapter when using custom User model without Account/Session tables
+  - Credentials provider uses JWT strategy (not database sessions)
+  - The `authorize` callback in credentials provider must return `null` for invalid credentials (not throw)
+  - Session callback chain: user → jwt callback (adds id to token) → session callback (adds id to session.user)
+---
