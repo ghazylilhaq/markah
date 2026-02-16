@@ -87,8 +87,8 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Middleware at middleware.ts uses NextAuth v5 auth() wrapper. Matcher excludes api and _next routes. Authenticated users redirected from /login and /register to /dashboard. Unauthenticated users redirected to /login for all non-public routes."
     },
     {
       "id": "US-006",

@@ -10,6 +10,7 @@
 - Tailwind CSS v4 with PostCSS plugin.
 - Auth pages use `(auth)` route group with centered layout in `app/(auth)/layout.tsx`.
 - `next lint` command doesn't work (Next.js 16 changed CLI); use `npx eslint` directly instead.
+- Auth middleware at `middleware.ts` uses `auth()` from `lib/auth.ts` — public routes: `/`, `/login`, `/register`, `/share/*`.
 ---
 
 ## 2026-02-17 - US-002
@@ -54,4 +55,16 @@
   - `signIn` returns `{ error: string | undefined }` — check `result?.error` to show error messages
   - Login page reuses same (auth) layout and shadcn/ui Card pattern as registration
   - `autoComplete="current-password"` for login vs `autoComplete="new-password"` for registration
+---
+
+## 2026-02-17 - US-005
+- What was implemented: Auth middleware and protected routes
+- Files changed:
+  - `middleware.ts` — NextAuth v5 auth() middleware with route protection logic
+- **Learnings for future iterations:**
+  - NextAuth v5 exports `auth` from config that can wrap middleware: `export default auth((req) => { ... })`
+  - `req.auth` is the session object in the middleware callback — truthy when logged in
+  - Matcher `["/((?!api|_next/static|_next/image|favicon.ico).*)"]` excludes API routes and static assets
+  - Public routes: `/`, `/login`, `/register`, `/share/*`
+  - Auth routes (`/login`, `/register`) redirect to `/dashboard` when already authenticated
 ---
