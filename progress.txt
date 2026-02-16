@@ -12,6 +12,7 @@
 - Auth pages use `(auth)` route group with centered layout in `app/(auth)/layout.tsx`.
 - `next lint` command doesn't work (Next.js 16 changed CLI); use `npx eslint` directly instead.
 - Auth middleware at `middleware.ts` uses `auth()` from `lib/auth.ts` — public routes: `/`, `/login`, `/register`, `/share/*`.
+- Services go in `lib/services/` directory — use `"use server"` directive for server-side-only code.
 ---
 
 ## 2026-02-17 - US-002
@@ -91,4 +92,17 @@
   - `prisma.seed` in package.json is deprecated in Prisma v7 — will need prisma.config.ts migration eventually
   - tsx is not a project dependency but npx auto-installs it; consider adding to devDependencies if seed runs in CI
   - Test user credentials: test@markah.com / password123
+---
+
+## 2026-02-17 - US-008
+- What was implemented: Link preview fetching service at lib/services/link-preview.ts
+- Files changed:
+  - `lib/services/link-preview.ts` — Server-side service that fetches a URL and extracts OG/meta tag data (title, description, image, favicon)
+- **Learnings for future iterations:**
+  - No external HTML parser needed — regex works fine for extracting meta tags from HTML head
+  - `"use server"` directive used to keep the service server-side only
+  - AbortController with setTimeout provides clean 10s fetch timeout
+  - Meta tags can have property/name and content in either order — regex must handle both
+  - Relative URLs in og:image and favicon href need resolving against the base URL
+  - Graceful fallback: hostname extracted from URL used as title when fetch fails entirely
 ---

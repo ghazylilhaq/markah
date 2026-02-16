@@ -143,8 +143,8 @@
         "Typecheck passes"
       ],
       "priority": 8,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Link preview service at lib/services/link-preview.ts. Uses fetch with 10s timeout, regex-based HTML parsing. Extracts og:title, og:description, og:image with fallbacks to <title> and <meta name='description'>. Favicon from <link rel='icon'> or /favicon.ico. Returns partial data (hostname as title) on errors. No external dependencies."
     },
     {
       "id": "US-009",
