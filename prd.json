@@ -123,8 +123,8 @@
         "Typecheck passes"
       ],
       "priority": 7,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Seed script at prisma/seed.ts. Creates test user (test@markah.com / password123), 12 bookmarks, 8 tags, 3 folders (one nested). Idempotent via upsert + delete-recreate. Configured in package.json prisma.seed using tsx. Prisma v6 warns about package.json config being deprecated in v7."
     },
     {
       "id": "US-008",

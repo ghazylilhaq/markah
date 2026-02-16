@@ -1,5 +1,6 @@
 ## Codebase Patterns
-- Prisma v6 used (not v7). DB connects to local PostgreSQL with user pomo/pomo.
+- Prisma v6 used (not v7). DB connects to local PostgreSQL with user pomo/pomo. Prisma v6 warns about `package.json#prisma` config being deprecated in v7.
+- Seed script uses `npx tsx prisma/seed.ts` — tsx is auto-installed by npx.
 - NextAuth.js v5 (beta.30) with JWT strategy and credentials provider — no Prisma adapter (custom User model).
 - Auth config lives in `lib/auth.ts`, exports `{ handlers, signIn, signOut, auth }`.
 - Session helper functions in `lib/session.ts` — use `getCurrentUser()` or `requireUser()` for auth checks.
@@ -78,4 +79,16 @@
   - Landing page uses lucide-react icons (Bookmark, FolderOpen, Search, Share2, Sparkles, Tag) — already available in project
   - stone color palette consistent with auth pages (bg-stone-50, text-stone-900, etc.)
   - FeatureCard is a local component in page.tsx — no need for separate file for single-use components
+---
+
+## 2026-02-17 - US-007
+- What was implemented: Prisma seed script with test data
+- Files changed:
+  - `prisma/seed.ts` — Seed script creating test user, 12 bookmarks, 8 tags, 3 folders with associations
+  - `package.json` — Added `prisma.seed` config pointing to `npx tsx prisma/seed.ts`
+- **Learnings for future iterations:**
+  - Seed idempotency: upsert for user, then delete-recreate for all child data (tags, folders, bookmarks, associations)
+  - `prisma.seed` in package.json is deprecated in Prisma v7 — will need prisma.config.ts migration eventually
+  - tsx is not a project dependency but npx auto-installs it; consider adding to devDependencies if seed runs in CI
+  - Test user credentials: test@markah.com / password123
 ---
