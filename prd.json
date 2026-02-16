@@ -1,0 +1,493 @@
+{
+  "project": "Markah",
+  "branchName": "ralph/bookmark-manager-v1",
+  "description": "Markah — Self-hosted bookmark manager with auto-fetched metadata, AI tag suggestions, folder organization, full-text search, and public sharing",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Prisma schema and database setup",
+      "description": "As a developer, I need the Prisma schema defined and database connected so all features have a data layer to build on.",
+      "acceptanceCriteria": [
+        "Prisma schema defines User model with id, name, email, password, createdAt, updatedAt",
+        "Prisma schema defines Bookmark model with id, url, title, description, image, favicon, isFavorite (default false), isPublic (default false), shareId (unique), visitCount (default 0), lastVisitedAt, position, createdAt, updatedAt, userId foreign key",
+        "Prisma schema defines Folder model with id, name, parentId (self-referential nullable), isPublic (default false), shareId (unique), position, createdAt, updatedAt, userId foreign key",
+        "Prisma schema defines Tag model with id, name, color, createdAt, userId foreign key with unique constraint on [name, userId]",
+        "Prisma schema defines BookmarkTag join table with bookmarkId and tagId",
+        "Prisma schema defines BookmarkFolder join table with bookmarkId and folderId",
+        "User email has unique constraint",
+        "Prisma migration runs successfully against PostgreSQL",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "NextAuth.js credentials authentication setup",
+      "description": "As a developer, I need NextAuth.js configured with email/password credentials so users can register and log in.",
+      "acceptanceCriteria": [
+        "NextAuth.js v5 installed and configured with Prisma adapter",
+        "Credentials provider set up with email and password fields",
+        "Password hashed with bcrypt on registration",
+        "Auth session includes user id",
+        "API helper function to get current session/user",
+        "Environment variables: NEXTAUTH_SECRET, DATABASE_URL in .env.example",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Registration page UI",
+      "description": "As a new user, I want a registration form so I can create an account.",
+      "acceptanceCriteria": [
+        "Registration page at /register with email and password fields using shadcn/ui form components",
+        "Password field has minimum length validation (8 characters)",
+        "On submit, creates user with hashed password via server action",
+        "Duplicate email shows error message",
+        "Successful registration redirects to login page",
+        "Link to login page for existing users",
+        "Light theme, clean minimal design",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Login page UI",
+      "description": "As a returning user, I want a login form so I can access my bookmarks.",
+      "acceptanceCriteria": [
+        "Login page at /login with email and password fields using shadcn/ui form components",
+        "On submit, authenticates via NextAuth.js credentials provider",
+        "Invalid credentials show error message",
+        "Successful login redirects to /dashboard",
+        "Link to registration page for new users",
+        "Light theme, clean minimal design",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Auth middleware and protected routes",
+      "description": "As a developer, I need middleware to protect dashboard routes so only authenticated users can access them.",
+      "acceptanceCriteria": [
+        "Next.js middleware redirects unauthenticated users from /dashboard/* to /login",
+        "Authenticated users accessing /login or /register are redirected to /dashboard",
+        "Public routes (/, /share/*, /login, /register) are accessible without auth",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Landing page",
+      "description": "As a visitor, I want to see a simple landing page explaining what Markah is so I can decide to register.",
+      "acceptanceCriteria": [
+        "Landing page at / with hero section: app name 'Markah', one-line description, and placeholder illustration area",
+        "Get Started CTA button linking to /register",
+        "Sign In link in header linking to /login",
+        "Light theme, clean minimal design using shadcn/ui components",
+        "Responsive layout",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Seed script with test data",
+      "description": "As a developer, I need a seed script that creates a test user with sample bookmarks so I can develop against realistic data.",
+      "acceptanceCriteria": [
+        "Prisma seed script at prisma/seed.ts",
+        "Creates a test user (test@markah.com / password123)",
+        "Creates 10+ sample bookmarks with varied titles, descriptions, URLs, and images",
+        "Creates 5+ sample tags with auto-assigned colors",
+        "Creates 3 sample folders (one nested) and assigns bookmarks to folders",
+        "Some bookmarks marked as favorites",
+        "Script is idempotent (can run multiple times without duplicating)",
+        "Configured in package.json prisma.seed",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Link preview fetching service",
+      "description": "As a developer, I need a server-side service that fetches a URL and extracts Open Graph / meta tag data so bookmarks are automatically enriched.",
+      "acceptanceCriteria": [
+        "Server action in lib/services/link-preview.ts accepts a URL string",
+        "Returns object with { title, description, image, favicon } fields",
+        "Parses og:title, og:description, og:image from HTML meta tags",
+        "Falls back to <title> tag when og:title missing",
+        "Falls back to <meta name='description'> when og:description missing",
+        "Extracts favicon from <link rel='icon'> or defaults to /favicon.ico on the domain",
+        "Returns null for image when no og:image found",
+        "Request timeout of 10 seconds",
+        "Returns partial data on errors (e.g., title from URL if fetch fails entirely)",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Dashboard layout with sidebar",
+      "description": "As a user, I want a dashboard layout with a sidebar for folders and a main content area for bookmarks.",
+      "acceptanceCriteria": [
+        "Dashboard layout at /dashboard with fixed sidebar (~250px) on left and main content area on right",
+        "Sidebar shows 'All Bookmarks', 'Favorites', and 'Unsorted' as static virtual folders at the top",
+        "Sidebar collapses to hamburger menu on mobile (below 768px)",
+        "Main content area has a header with app name and user email",
+        "Logout button in header that signs out and redirects to /",
+        "Light theme, clean minimal design",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Quick-add bookmark URL bar",
+      "description": "As a user, I want a persistent URL input bar at the top of the dashboard so I can quickly save bookmarks.",
+      "acceptanceCriteria": [
+        "Persistent URL input bar at the top of the dashboard main content area",
+        "Input has placeholder text 'Paste a URL to save...' with a submit button",
+        "On submit, creates bookmark in database with url field and URL as temporary title",
+        "After save, triggers async metadata fetch (link preview service) and updates the bookmark",
+        "If URL already exists for this user, shows toast with message and link to existing bookmark",
+        "Shows loading state while saving",
+        "Input clears after successful save",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Bookmark card component",
+      "description": "As a user, I want to see each bookmark as a card showing its metadata so I can browse my collection.",
+      "acceptanceCriteria": [
+        "BookmarkCard component displays: thumbnail image, title, description snippet (max 2 lines), domain extracted from URL, tags as colored badges, date saved",
+        "When no thumbnail image exists, show a generated color card (deterministic background color from domain hash + favicon overlay)",
+        "Tag badges use auto-assigned colors (deterministic hash of tag name to HSL)",
+        "Clicking the card title/thumbnail opens the original URL in a new tab",
+        "Star/favorite icon toggle (filled when isFavorite=true, outline when false)",
+        "Clicking star toggles isFavorite via server action",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Bookmark list view with grid/list toggle",
+      "description": "As a user, I want to see all my bookmarks in a grid or list view with a toggle to switch between them.",
+      "acceptanceCriteria": [
+        "Dashboard main area displays all user bookmarks using BookmarkCard component",
+        "Toggle button in header switches between grid view (card grid) and list view (compact rows)",
+        "Grid view shows cards in a responsive multi-column layout",
+        "List view shows bookmarks as compact single-line rows with title, domain, tags, date",
+        "View preference persisted in localStorage",
+        "Cursor-based pagination: 'Load more' button at bottom (20 bookmarks per page)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Visit tracking on bookmark click",
+      "description": "As a user, I want my bookmark clicks tracked so I can see which links I visit most.",
+      "acceptanceCriteria": [
+        "Clicking a bookmark to open its URL sends a server action to increment visitCount and set lastVisitedAt to now",
+        "Visit count displayed on bookmark card (small text, e.g. '5 visits')",
+        "lastVisitedAt displayed as relative time (e.g. '2 hours ago') on bookmark card if visited at least once",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Edit bookmark form",
+      "description": "As a user, I want to edit a bookmark's title, description, tags, and folders after saving it.",
+      "acceptanceCriteria": [
+        "Edit button on each bookmark card opens a dialog/modal with edit form",
+        "Form pre-fills current title, description, tags, and folder assignments",
+        "Title and description are editable text inputs",
+        "Tags section shows current tags as removable chips and an input to add new tags",
+        "Tag input has autocomplete dropdown suggesting existing user tags",
+        "Folder section shows checkboxes for all user folders (multi-select since bookmark can be in multiple folders)",
+        "Save button updates bookmark via server action",
+        "Cancel button closes dialog without saving",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Delete bookmark with confirmation",
+      "description": "As a user, I want to delete a bookmark with a confirmation step so I don't accidentally lose saved links.",
+      "acceptanceCriteria": [
+        "Delete button on each bookmark card (trash icon)",
+        "Clicking delete shows a confirmation dialog: 'Are you sure you want to delete this bookmark?'",
+        "Confirm deletes the bookmark and its tag/folder associations via server action",
+        "Bookmark removed from the list without full page reload",
+        "Cancel closes dialog without deleting",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "AI tag suggestion provider interface",
+      "description": "As a developer, I need an abstracted LLM provider interface so tag suggestions can use Claude, OpenAI, or Ollama interchangeably.",
+      "acceptanceCriteria": [
+        "TypeScript interface LLMProvider with method suggestTags(title: string, description: string, url: string): Promise<string[]>",
+        "Claude implementation using Anthropic SDK",
+        "OpenAI implementation using OpenAI SDK",
+        "Ollama implementation using fetch to local Ollama API",
+        "Factory function that reads LLM_PROVIDER env var ('claude' | 'openai' | 'ollama') and returns the correct implementation",
+        "Prompt instructs model to return 3-5 lowercase, single-word or hyphenated tags as JSON array",
+        "Returns empty array on any error (graceful fallback)",
+        "LLM_PROVIDER and LLM_API_KEY added to .env.example",
+        "Typecheck passes"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "AI tag suggestions on bookmark save",
+      "description": "As a user, I want to see AI-suggested tags after saving a bookmark so I can quickly categorize it.",
+      "acceptanceCriteria": [
+        "After metadata is fetched for a new bookmark, call the LLM provider to get tag suggestions",
+        "Suggestions displayed as clickable chip buttons below the new bookmark card",
+        "Clicking a suggested tag creates the tag (if new) with auto-assigned color and links it to the bookmark",
+        "Dismissing a suggestion removes it from the UI",
+        "If LLM provider is unavailable or returns error, no suggestions shown (no error to user)",
+        "Tags that already exist for the user are linked rather than duplicated",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-018",
+      "title": "Folder CRUD in sidebar",
+      "description": "As a user, I want to create, rename, and delete folders in the sidebar so I can organize my bookmarks.",
+      "acceptanceCriteria": [
+        "'+' button in sidebar to create a new folder (inline text input for name)",
+        "New folder created via server action and appears in sidebar immediately",
+        "Right-click or three-dot menu on folder shows Rename and Delete options",
+        "Rename opens inline text input pre-filled with current name",
+        "Delete moves all bookmarks in that folder to Unsorted (removes BookmarkFolder rows) and deletes the folder",
+        "Deleting a parent folder also deletes child folders (cascade), moving all their bookmarks to Unsorted",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 18,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-019",
+      "title": "Nested folders with depth limit",
+      "description": "As a user, I want to nest folders up to 3 levels deep so I can create a hierarchy without it getting unwieldy.",
+      "acceptanceCriteria": [
+        "Folders display as a collapsible tree in the sidebar (expand/collapse arrow for folders with children)",
+        "Creating a folder inside another folder sets parentId",
+        "Application enforces max 3 levels of nesting (root > child > grandchild)",
+        "Attempting to nest beyond 3 levels shows an error toast",
+        "Clicking a folder filters bookmark list to show only bookmarks in that folder",
+        "Clicking 'All Bookmarks' shows all bookmarks regardless of folder",
+        "Clicking 'Unsorted' shows bookmarks not assigned to any folder",
+        "Clicking 'Favorites' shows bookmarks where isFavorite is true",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-020",
+      "title": "Full-text search",
+      "description": "As a user, I want to search across all my bookmarks by title, description, URL, or tag name.",
+      "acceptanceCriteria": [
+        "Search input in the dashboard header area",
+        "Prisma migration adds tsvector generated column to Bookmark table combining title, description, url",
+        "GIN index on the tsvector column for fast search",
+        "Search queries use tsquery against the tsvector column plus ILIKE on associated tag names",
+        "Results update as user types with 300ms debounce (React Query)",
+        "No results state shows helpful message",
+        "Empty search shows all bookmarks",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-021",
+      "title": "Tag and folder filters on search",
+      "description": "As a user, I want to filter search results by tags and folders so I can narrow down results precisely.",
+      "acceptanceCriteria": [
+        "Below the search input, show a row of clickable tag filter chips (all user tags, colored badges)",
+        "Clicking a tag chip toggles it as a filter (highlighted when active)",
+        "Multiple tags can be selected (AND filter: bookmark must have all selected tags)",
+        "Selecting a folder in the sidebar scopes search results to that folder",
+        "All three filters combine: text query AND selected tags AND selected folder",
+        "Active filters shown as removable chips below search bar",
+        "Clear all filters button",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 21,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-022",
+      "title": "Drag-and-drop bookmarks into folders",
+      "description": "As a user, I want to drag bookmark cards onto folders in the sidebar to organize them.",
+      "acceptanceCriteria": [
+        "Install and configure @dnd-kit/core and @dnd-kit/sortable",
+        "Bookmark cards are draggable (drag handle or entire card)",
+        "Folders in sidebar are drop targets",
+        "Dragging a bookmark over a folder highlights the folder as a drop target",
+        "Dropping a bookmark on a folder creates a BookmarkFolder association via server action",
+        "Visual feedback during drag (card follows cursor with reduced opacity)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 22,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-023",
+      "title": "Drag-and-drop folder reordering and nesting",
+      "description": "As a user, I want to drag folders to reorder them and nest them inside each other.",
+      "acceptanceCriteria": [
+        "Folders in sidebar are both draggable and droppable",
+        "Dragging a folder between other folders reorders them (updates position field)",
+        "Dragging a folder onto another folder nests it (sets parentId), enforcing max 3 levels",
+        "If nesting would exceed 3 levels, drop is rejected with visual feedback",
+        "Folder order persisted to database via position field",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 23,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-024",
+      "title": "Public sharing toggle and share URL",
+      "description": "As a user, I want to make a bookmark or folder public and get a shareable link.",
+      "acceptanceCriteria": [
+        "Context menu (three-dot menu) on bookmark card and folder includes 'Share' option",
+        "Clicking Share opens a dialog showing the share URL and a toggle for public/private",
+        "Toggling public sets isPublic=true and generates a shareId (nanoid or cuid) if not already set",
+        "Toggling private sets isPublic=false (shareId preserved for future re-enable)",
+        "'Copy link' button copies the share URL to clipboard with toast confirmation",
+        "Share URL format: /share/[shareId]",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 24,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-025",
+      "title": "Public share page (read-only)",
+      "description": "As a visitor, I want to view shared bookmarks at a public URL without logging in.",
+      "acceptanceCriteria": [
+        "Page at /share/[shareId] renders without authentication",
+        "For a shared bookmark: displays card with thumbnail (or color card), title, description, tags, link to URL",
+        "For a shared folder: displays a list of bookmark cards for all bookmarks in that folder",
+        "If shareId does not exist or item is not public, returns 404 page",
+        "Minimal read-only layout with Markah branding in header",
+        "No edit/delete controls visible",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 25,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-026",
+      "title": "Health check endpoint",
+      "description": "As a developer, I need a health check endpoint so Dokploy and monitoring tools can verify the app is running.",
+      "acceptanceCriteria": [
+        "GET /api/health returns 200 with JSON { status: 'ok', timestamp: ISO string }",
+        "Endpoint checks database connectivity (simple Prisma query)",
+        "Returns 503 if database is unreachable",
+        "No authentication required",
+        "Typecheck passes"
+      ],
+      "priority": 26,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-027",
+      "title": "Dockerfile and docker-compose",
+      "description": "As a developer, I want to containerize the app with Docker so it can be deployed via Dokploy to a VPS.",
+      "acceptanceCriteria": [
+        "Multi-stage Dockerfile: dependencies stage, build stage, production stage",
+        "Production image uses node:20-alpine",
+        "docker-compose.yml defines app service and postgres service",
+        "Postgres service uses named volume for data persistence",
+        "App service depends on postgres and runs Prisma migrations on start",
+        ".env.example documents all required environment variables: DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL, LLM_PROVIDER, LLM_API_KEY",
+        ".dockerignore excludes node_modules, .next, .git",
+        "App builds and starts successfully with docker-compose up",
+        "Typecheck passes"
+      ],
+      "priority": 27,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
