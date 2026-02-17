@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { QuickAddWithSuggestions } from "@/components/quick-add-with-suggestions";
 import { DashboardContent } from "@/components/dashboard-content";
-import { getBookmarks } from "@/lib/actions/bookmark";
+import { getBookmarks, getUserTags } from "@/lib/actions/bookmark";
 import { prisma } from "@/lib/prisma";
 
 function getFilterLabel(
@@ -38,11 +38,10 @@ export default async function DashboardPage({
     folderName = folder?.name ?? null;
   }
 
-  const { bookmarks, nextCursor } = await getBookmarks(
-    undefined,
-    20,
-    filter
-  );
+  const [{ bookmarks, nextCursor }, userTags] = await Promise.all([
+    getBookmarks(undefined, 20, filter),
+    getUserTags(),
+  ]);
 
   const heading = getFilterLabel(filter, folderName);
 
@@ -67,6 +66,7 @@ export default async function DashboardPage({
         initialBookmarks={bookmarks}
         initialCursor={nextCursor}
         filter={filter}
+        userTags={userTags}
       />
     </div>
   );

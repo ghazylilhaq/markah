@@ -9,10 +9,12 @@ import type { BookmarkCardData } from "@/components/bookmark-card";
 
 export function SearchBar({
   filter,
+  tagIds,
   onResults,
   onClear,
 }: {
   filter?: string;
+  tagIds?: string[];
   onResults: (bookmarks: BookmarkCardData[], query: string) => void;
   onClear: () => void;
 }) {
@@ -31,12 +33,12 @@ export function SearchBar({
 
       debounceRef.current = setTimeout(() => {
         startTransition(async () => {
-          const result = await searchBookmarks(value, filter);
+          const result = await searchBookmarks(value, filter, tagIds);
           onResults(result.bookmarks, value);
         });
       }, 300);
     },
-    [filter, onResults, onClear]
+    [filter, tagIds, onResults, onClear]
   );
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {

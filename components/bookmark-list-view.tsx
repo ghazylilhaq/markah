@@ -35,10 +35,12 @@ export function BookmarkListView({
   initialBookmarks,
   initialCursor,
   filter,
+  tagIds,
 }: {
   initialBookmarks: BookmarkCardData[];
   initialCursor: string | null;
   filter?: string;
+  tagIds?: string[];
 }) {
   const [viewMode, setViewMode] = useViewMode();
   const [bookmarks, setBookmarks] = useState(initialBookmarks);
@@ -48,7 +50,7 @@ export function BookmarkListView({
   function handleLoadMore() {
     if (!cursor) return;
     startTransition(async () => {
-      const result = await getBookmarks(cursor, 20, filter);
+      const result = await getBookmarks(cursor, 20, filter, tagIds);
       setBookmarks((prev) => [...prev, ...result.bookmarks]);
       setCursor(result.nextCursor);
     });
@@ -90,7 +92,9 @@ export function BookmarkListView({
 
       {/* Bookmarks */}
       {bookmarks.length === 0 ? (
-        <p className="text-sm text-stone-500">No bookmarks yet.</p>
+        <p className="text-sm text-stone-500">
+          {tagIds && tagIds.length > 0 ? "No bookmarks match the selected filters." : "No bookmarks yet."}
+        </p>
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {bookmarks.map((bookmark) => (

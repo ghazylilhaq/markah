@@ -381,8 +381,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 21,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "TagFilterBar component at components/tag-filter-bar.tsx. Shows all user tags as colored clickable chips below search bar. Toggling a tag highlights it with ring indicator. Multiple tags = AND filter (bookmark must have ALL selected tags). DashboardContent manages combined state: text search + tag filters + folder filter. Server actions getBookmarks and searchBookmarks both accept tagIds parameter. getBookmarks uses Prisma AND clause with tags.some for each tag. searchBookmarks uses raw SQL COUNT(DISTINCT tagId) = tagIds.length. Active filter count shown with 'Clear all' button. Folder filter from sidebar combines with tag filters."
     },
     {
       "id": "US-022",

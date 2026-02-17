@@ -60,7 +60,8 @@ export async function toggleFavorite(bookmarkId: string) {
 export async function getBookmarks(
   cursor?: string,
   limit: number = 20,
-  filter?: string
+  filter?: string,
+  tagIds?: string[]
 ) {
   const user = await requireUser();
 
@@ -69,6 +70,7 @@ export async function getBookmarks(
     userId: string;
     isFavorite?: boolean;
     folders?: { none: Record<string, never> } | { some: { folderId: string } };
+    AND?: Array<{ tags: { some: { tagId: string } } }>;
   } = { userId: user.id };
 
   if (filter === "favorites") {
@@ -77,6 +79,13 @@ export async function getBookmarks(
     where.folders = { none: {} };
   } else if (filter && filter !== "all") {
     where.folders = { some: { folderId: filter } };
+  }
+
+  // Tag filter: bookmark must have ALL selected tags (AND logic)
+  if (tagIds && tagIds.length > 0) {
+    where.AND = tagIds.map((tagId) => ({
+      tags: { some: { tagId } },
+    }));
   }
 
   const bookmarks = await prisma.bookmark.findMany({
@@ -286,14 +295,15 @@ export async function applyTagSuggestion(
 
 export async function searchBookmarks(
   query: string,
-  filter?: string
+  filter?: string,
+  tagIds?: string[]
 ) {
   const user = await requireUser();
 
   // Sanitize query: remove special tsquery characters, trim
   const sanitized = query.trim().replace(/[&|!():*<>'"\\]/g, " ").trim();
   if (!sanitized) {
-    return getBookmarks(undefined, 20, filter);
+    return getBookmarks(undefined, 20, filter, tagIds);
   }
 
   // Build tsquery: split words, join with & (AND), add :* for prefix matching
@@ -315,6 +325,16 @@ export async function searchBookmarks(
     filterCondition = Prisma.sql`AND EXISTS (
       SELECT 1 FROM "BookmarkFolder" bf WHERE bf."bookmarkId" = b."id" AND bf."folderId" = ${filter}
     )`;
+  }
+
+  // Tag filter: bookmark must have ALL selected tags (AND logic)
+  let tagFilterCondition = Prisma.sql``;
+  if (tagIds && tagIds.length > 0) {
+    tagFilterCondition = Prisma.sql`AND (
+      SELECT COUNT(DISTINCT bt2."tagId")
+      FROM "BookmarkTag" bt2
+      WHERE bt2."bookmarkId" = b."id" AND bt2."tagId" = ANY(${tagIds}::text[])
+    ) = ${tagIds.length}`;
   }
 
   // Search using tsvector + tag ILIKE
@@ -346,6 +366,7 @@ export async function searchBookmarks(
         OR t."name" ILIKE ${`%${sanitized}%`}
       )
       ${filterCondition}
+      ${tagFilterCondition}
     ORDER BY rank DESC, b."createdAt" DESC
     LIMIT 40
   `);
