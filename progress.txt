@@ -185,3 +185,36 @@
   - Some stories get implemented ahead of schedule as dependencies of later stories — always check if work already exists before starting
   - `formatRelativeTime` helper provides human-readable time (just now, Xm ago, Xh ago, Xd ago, Xmo ago)
 ---
+
+## 2026-02-17 - US-014
+- What was implemented: Edit bookmark form (already implemented in earlier iterations)
+- Files already containing the implementation:
+  - `components/edit-bookmark-dialog.tsx` — Full edit dialog with title, description, tags (chips + autocomplete), folder checkboxes
+  - `lib/actions/bookmark.ts` — `updateBookmark`, `getBookmarkDetails`, `getUserTags`, `getUserFolders` server actions
+  - `components/bookmark-card.tsx` — Edit (Pencil) button integrated
+  - `components/bookmark-list-item.tsx` — Edit (Pencil) button integrated
+- **Learnings for future iterations:**
+  - Tag autocomplete uses onMouseDown instead of onClick to fire before onBlur closes the dropdown
+  - Folder labels built recursively with `getFolderLabel` for nested display (parent / child)
+---
+
+## 2026-02-17 - US-015
+- What was implemented: Delete bookmark with confirmation (already implemented in earlier iterations)
+- Files already containing the implementation:
+  - `components/bookmark-card.tsx` — Trash2 icon + AlertDialog confirmation
+  - `components/bookmark-list-item.tsx` — Trash2 icon + AlertDialog confirmation
+  - `lib/actions/bookmark.ts` — `deleteBookmark` server action with transaction
+- **Learnings for future iterations:**
+  - AlertDialog from shadcn/ui wraps Radix AlertDialog — use AlertDialogTrigger asChild for custom trigger buttons
+  - Transaction ensures tag/folder associations are deleted before the bookmark
+---
+
+## 2026-02-17 - US-016
+- What was implemented: AI tag suggestion provider interface (already implemented in earlier iterations)
+- Files already containing the implementation:
+  - `lib/services/llm-provider.ts` — LLMProvider interface, ClaudeProvider, OpenAIProvider, OllamaProvider, getLLMProvider factory
+  - `.env.example` — LLM_PROVIDER and LLM_API_KEY documented
+- **Learnings for future iterations:**
+  - parseTags validates JSON array and regex-checks each tag against `^[a-z0-9]+(-[a-z0-9]+)*$`
+  - getLLMProvider returns null if provider not configured — callers must handle null gracefully
+---

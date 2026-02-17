@@ -251,8 +251,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 14,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "EditBookmarkDialog at components/edit-bookmark-dialog.tsx. Edit button on BookmarkCard and BookmarkListItem. Dialog pre-fills title, description, tags (removable chips + autocomplete), folder checkboxes. updateBookmark server action in lib/actions/bookmark.ts."
     },
     {
       "id": "US-015",
@@ -268,8 +268,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 15,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Delete button (Trash2 icon) on BookmarkCard and BookmarkListItem. AlertDialog confirmation dialog. deleteBookmark server action removes tag/folder associations and bookmark in transaction. onDelete callback removes from UI list without full page reload."
     },
     {
       "id": "US-016",
@@ -287,8 +287,8 @@
         "Typecheck passes"
       ],
       "priority": 16,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "LLMProvider interface and implementations (Claude, OpenAI, Ollama) at lib/services/llm-provider.ts. Factory function getLLMProvider reads LLM_PROVIDER env var. parseTags validates JSON array format. LLM_PROVIDER and LLM_API_KEY in .env.example."
     },
     {
       "id": "US-017",
