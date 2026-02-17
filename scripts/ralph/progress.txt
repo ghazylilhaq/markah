@@ -31,7 +31,11 @@
 - Cursor-based pagination pattern: `take: limit + 1`, check `length > limit` for hasMore, `slice(0, limit)` for results.
 - Use `prisma.$transaction(async (tx) => { ... })` for multi-step atomic operations (e.g., update bookmark + replace tags + replace folders).
 - Tag upsert pattern: `tx.tag.upsert({ where: { name_userId: { name, userId } }, update: {}, create: { name, userId } })` to get-or-create tags.
-- shadcn/ui Dialog + Checkbox components installed and available.
+- shadcn/ui Dialog + Checkbox + AlertDialog components installed and available.
+- For destructive actions with confirmation, use shadcn/ui AlertDialog (not Dialog).
+- Parent-to-child `onDelete` callback pattern: parent filters state, child calls after server action succeeds — avoids full page reload.
+- LLM provider service at `lib/services/llm-provider.ts` — use `getLLMProvider()` factory, returns `null` if unconfigured.
+- `.env.example` is gitignored by `.env*` pattern — use `git add -f .env.example` to commit it.
 
 # Ralph Progress Log
 Started: Tue Feb 17 02:05:07 WIB 2026
@@ -234,4 +238,36 @@ Started: Tue Feb 17 02:05:07 WIB 2026
   - Tag autocomplete uses `onMouseDown` with `preventDefault` instead of `onClick` to prevent input blur from hiding suggestions before click registers
   - Nested folder labels built recursively from flat array using `parentId` lookup
   - Edit button uses `opacity-0 group-hover:opacity-100` pattern for show-on-hover
+---
+
+## 2026-02-17 - US-015
+- What was implemented: Delete bookmark with confirmation dialog
+- Files changed:
+  - `components/ui/alert-dialog.tsx` — shadcn/ui AlertDialog component (installed)
+  - `lib/actions/bookmark.ts` — Added `deleteBookmark` server action (transaction: delete tag/folder associations + bookmark)
+  - `components/bookmark-card.tsx` — Added trash icon delete button with AlertDialog confirmation, `onDelete` callback prop
+  - `components/bookmark-list-item.tsx` — Added trash icon delete button with AlertDialog confirmation, `onDelete` callback prop
+  - `components/bookmark-list-view.tsx` — Added `handleDelete` to filter deleted bookmark from local state (no page reload)
+  - `scripts/ralph/prd.json` — Marked US-015 as passes: true
+- **Learnings for future iterations:**
+  - shadcn/ui AlertDialog is the correct component for destructive confirmation dialogs (not Dialog)
+  - `onDelete` callback pattern: parent component (BookmarkListView) passes a callback to children, children call it after successful server action to remove from state
+  - AlertDialogTrigger button needs `onClick` with `e.stopPropagation()` to prevent event bubbling to parent click handlers
+  - Delete button reuses same `opacity-0 group-hover:opacity-100` hover-reveal pattern as edit button
+---
+
+## 2026-02-17 - US-016
+- What was implemented: AI tag suggestion provider interface with Claude, OpenAI, and Ollama implementations
+- Files changed:
+  - `lib/services/llm-provider.ts` — LLMProvider interface, three implementations (ClaudeProvider, OpenAIProvider, OllamaProvider), factory function getLLMProvider()
+  - `.env.example` — Added LLM_PROVIDER and LLM_API_KEY variables
+  - `package.json` / `bun.lock` — Added @anthropic-ai/sdk and openai dependencies
+  - `scripts/ralph/prd.json` — Marked US-016 as passes: true
+- **Learnings for future iterations:**
+  - `@anthropic-ai/sdk` and `openai` packages installed — import `Anthropic` from `@anthropic-ai/sdk`, `OpenAI` from `openai`
+  - Claude Haiku 4.5 model ID: `claude-haiku-4-5-20251001` — cheapest/fastest for tag suggestions
+  - Ollama API: POST to `/api/chat` with `{ model, stream: false, messages }` — returns `{ message: { content } }`
+  - `parseTags()` extracts JSON array from LLM response text using regex `\[[\s\S]*?\]` then validates each tag format
+  - `.env.example` is gitignored by `.env*` pattern — needs `git add -f` to commit
+  - Factory function returns `null` when LLM_PROVIDER is not set or API key is missing — callers should handle gracefully
 ---
