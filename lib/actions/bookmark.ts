@@ -435,6 +435,41 @@ export async function addBookmarkToFolder(bookmarkId: string, folderId: string) 
   return { success: true };
 }
 
+export async function toggleBookmarkShare(bookmarkId: string) {
+  const user = await requireUser();
+
+  const bookmark = await prisma.bookmark.findFirst({
+    where: { id: bookmarkId, userId: user.id },
+    select: { isPublic: true, shareId: true },
+  });
+  if (!bookmark) throw new Error("Bookmark not found");
+
+  const newIsPublic = !bookmark.isPublic;
+  const shareId = bookmark.shareId || crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+
+  await prisma.bookmark.update({
+    where: { id: bookmarkId },
+    data: {
+      isPublic: newIsPublic,
+      shareId,
+    },
+  });
+
+  return { isPublic: newIsPublic, shareId };
+}
+
+export async function getBookmarkShareInfo(bookmarkId: string) {
+  const user = await requireUser();
+
+  const bookmark = await prisma.bookmark.findFirst({
+    where: { id: bookmarkId, userId: user.id },
+    select: { isPublic: true, shareId: true },
+  });
+  if (!bookmark) throw new Error("Bookmark not found");
+
+  return { isPublic: bookmark.isPublic, shareId: bookmark.shareId };
+}
+
 async function fetchAndUpdateMetadata(bookmarkId: string, url: string) {
   const preview = await fetchLinkPreview(url);
 

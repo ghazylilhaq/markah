@@ -14,6 +14,7 @@ import {
   Trash2,
   ChevronRight,
   FolderPlus,
+  Share2,
 } from "lucide-react";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
@@ -38,6 +39,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { createFolder, renameFolder, deleteFolder } from "@/lib/actions/folder";
 import { toast } from "sonner";
+import { ShareDialog } from "@/components/share-dialog";
 
 export type Folder = {
   id: string;
@@ -262,6 +264,7 @@ function FolderItem({
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameName, setRenameName] = useState(folder.name);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const hasChildren = folder.children.length > 0;
@@ -438,6 +441,10 @@ function FolderItem({
                 New subfolder
               </DropdownMenuItem>
             )}
+            <DropdownMenuItem onClick={() => setShareOpen(true)}>
+              <Share2 className="mr-2 h-3.5 w-3.5" />
+              Share
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
                 setRenameName(folder.name);
@@ -480,6 +487,14 @@ function FolderItem({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        type="folder"
+        id={folder.id}
+        name={folder.name}
+      />
 
       {isExpanded && (
         <>

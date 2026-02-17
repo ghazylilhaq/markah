@@ -183,6 +183,41 @@ export async function moveFolderToParent(
   });
 }
 
+export async function toggleFolderShare(folderId: string) {
+  const user = await requireUser();
+
+  const folder = await prisma.folder.findFirst({
+    where: { id: folderId, userId: user.id },
+    select: { isPublic: true, shareId: true },
+  });
+  if (!folder) throw new Error("Folder not found");
+
+  const newIsPublic = !folder.isPublic;
+  const shareId = folder.shareId || crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+
+  await prisma.folder.update({
+    where: { id: folderId },
+    data: {
+      isPublic: newIsPublic,
+      shareId,
+    },
+  });
+
+  return { isPublic: newIsPublic, shareId };
+}
+
+export async function getFolderShareInfo(folderId: string) {
+  const user = await requireUser();
+
+  const folder = await prisma.folder.findFirst({
+    where: { id: folderId, userId: user.id },
+    select: { isPublic: true, shareId: true },
+  });
+  if (!folder) throw new Error("Folder not found");
+
+  return { isPublic: folder.isPublic, shareId: folder.shareId };
+}
+
 export async function reorderFolders(folderIds: string[]) {
   await requireUser();
 

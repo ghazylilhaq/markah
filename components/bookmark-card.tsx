@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Star, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { Star, ExternalLink, Pencil, Trash2, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toggleFavorite, recordVisit, deleteBookmark } from "@/lib/actions/bookmark";
@@ -19,6 +19,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { ShareDialog } from "@/components/share-dialog";
 
 type Tag = {
   id: string;
@@ -103,6 +104,7 @@ export function BookmarkCard({
   const [isFavorite, setIsFavorite] = useState(bookmark.isFavorite);
   const [toggling, setToggling] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
   const domain = getDomain(bookmark.url);
@@ -182,6 +184,17 @@ export function BookmarkCard({
               {bookmark.title || bookmark.url}
             </h3>
           </a>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShareOpen(true);
+            }}
+            className="shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-stone-600 group-hover:opacity-100"
+            aria-label="Share bookmark"
+          >
+            <Share2 className="h-4 w-4" />
+          </button>
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -316,6 +329,14 @@ export function BookmarkCard({
         bookmarkId={bookmark.id}
         open={editOpen}
         onOpenChange={setEditOpen}
+      />
+
+      <ShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        type="bookmark"
+        id={bookmark.id}
+        name={bookmark.title || bookmark.url}
       />
     </div>
   );
