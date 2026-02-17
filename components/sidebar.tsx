@@ -434,7 +434,7 @@ function FolderItem({
             <Button
               variant="ghost"
               size="icon-sm"
-              className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100"
+              className="h-6 w-6 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
               onClick={(e) => e.preventDefault()}
             >
               <MoreHorizontal className="h-3.5 w-3.5" />
@@ -442,16 +442,17 @@ function FolderItem({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
             {depth + 1 < MAX_FOLDER_DEPTH && (
-              <DropdownMenuItem onClick={handleCreateSubfolder}>
+              <DropdownMenuItem className="min-h-[44px] md:min-h-0" onClick={handleCreateSubfolder}>
                 <FolderPlus className="mr-2 h-3.5 w-3.5" />
                 New subfolder
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => setShareOpen(true)}>
+            <DropdownMenuItem className="min-h-[44px] md:min-h-0" onClick={() => setShareOpen(true)}>
               <Share2 className="mr-2 h-3.5 w-3.5" />
               Share
             </DropdownMenuItem>
             <DropdownMenuItem
+              className="min-h-[44px] md:min-h-0"
               onClick={() => {
                 setRenameName(folder.name);
                 setIsRenaming(true);
@@ -461,7 +462,7 @@ function FolderItem({
               Rename
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="text-red-600 focus:text-red-600"
+              className="min-h-[44px] md:min-h-0 text-red-600 focus:text-red-600"
               onClick={() => setShowDeleteDialog(true)}
             >
               <Trash2 className="mr-2 h-3.5 w-3.5" />
