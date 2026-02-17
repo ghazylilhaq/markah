@@ -279,7 +279,7 @@ export default async function SharePage({
                 Markah
               </span>
             </Link>
-            <span className="text-sm text-stone-400">
+            <span className="max-w-[200px] truncate text-sm text-stone-400">
               / {folder.name}
             </span>
           </div>
