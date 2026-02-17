@@ -123,39 +123,68 @@ export function BookmarkListItem({
         )}
       </div>
 
-      {/* Title */}
-      <a
-        href={bookmark.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={handleVisit}
-        className="min-w-0 flex-1 truncate text-sm font-medium text-stone-900 hover:underline"
-      >
-        {bookmark.title || bookmark.url}
-      </a>
+      {/* Title + metadata: stacked on mobile, inline on sm+ */}
+      <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center sm:gap-3">
+        <a
+          href={bookmark.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleVisit}
+          className="min-w-0 truncate text-sm font-medium text-stone-900 hover:underline"
+        >
+          {bookmark.title || bookmark.url}
+        </a>
 
-      {/* Domain */}
-      <span className="hidden shrink-0 text-xs text-stone-400 sm:inline">
-        {domain}
-      </span>
-
-      {/* Tags */}
-      <div className="hidden items-center gap-1 md:flex">
-        {bookmark.tags.slice(0, 3).map((tag) => (
-          <Badge
-            key={tag.id}
-            variant="secondary"
-            className="text-xs px-1.5 py-0"
-            style={tagBadgeStyle(tag.name)}
-          >
-            {tag.name}
-          </Badge>
-        ))}
-        {bookmark.tags.length > 3 && (
-          <span className="text-[10px] text-stone-400">
-            +{bookmark.tags.length - 3}
+        {/* Domain + Tags row (visible on mobile, inline on sm+) */}
+        <div className="flex items-center gap-1.5 sm:contents">
+          {/* Domain */}
+          <span className="shrink-0 text-xs text-stone-400">
+            {domain}
           </span>
-        )}
+
+          {/* Tags - show 2 on mobile, 3 on md+ */}
+          {bookmark.tags.length > 0 && (
+            <>
+              <span className="text-stone-300 text-xs sm:hidden">·</span>
+              <div className="flex items-center gap-1 sm:hidden">
+                {bookmark.tags.slice(0, 2).map((tag) => (
+                  <Badge
+                    key={tag.id}
+                    variant="secondary"
+                    className="text-xs px-1.5 py-0"
+                    style={tagBadgeStyle(tag.name)}
+                  >
+                    {tag.name}
+                  </Badge>
+                ))}
+                {bookmark.tags.length > 2 && (
+                  <span className="text-[10px] text-stone-400">
+                    +{bookmark.tags.length - 2}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Tags - desktop (3 tags, hidden below md) */}
+          <div className="hidden items-center gap-1 md:flex">
+            {bookmark.tags.slice(0, 3).map((tag) => (
+              <Badge
+                key={tag.id}
+                variant="secondary"
+                className="text-xs px-1.5 py-0"
+                style={tagBadgeStyle(tag.name)}
+              >
+                {tag.name}
+              </Badge>
+            ))}
+            {bookmark.tags.length > 3 && (
+              <span className="text-[10px] text-stone-400">
+                +{bookmark.tags.length - 3}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Visit info */}
