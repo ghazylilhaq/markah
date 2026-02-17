@@ -2,6 +2,7 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/session";
 import { fetchLinkPreview } from "@/lib/services/link-preview";
 import { getLLMProvider } from "@/lib/services/llm-provider";
@@ -33,6 +34,7 @@ export async function addBookmark(url: string) {
     // Silently ignore errors - bookmark was already saved
   });
 
+  revalidatePath("/dashboard", "layout");
   return { success: true, bookmarkId: bookmark.id };
 }
 
@@ -182,6 +184,8 @@ export async function updateBookmark(
       });
     }
   });
+
+  revalidatePath("/dashboard", "layout");
 }
 
 export async function getUserTags() {
@@ -235,6 +239,8 @@ export async function deleteBookmark(bookmarkId: string) {
     await tx.bookmarkFolder.deleteMany({ where: { bookmarkId } });
     await tx.bookmark.delete({ where: { id: bookmarkId } });
   });
+
+  revalidatePath("/dashboard", "layout");
 }
 
 export async function getTagSuggestions(bookmarkId: string): Promise<string[]> {
@@ -431,6 +437,7 @@ export async function addBookmarkToFolder(bookmarkId: string, folderId: string) 
     data: { bookmarkId, folderId },
   });
 
+  revalidatePath("/dashboard", "layout");
   return { success: true };
 }
 
