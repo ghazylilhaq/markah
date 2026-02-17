@@ -28,6 +28,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { BookmarkCardData } from "@/components/bookmark-card";
+import { useMediaQuery } from "@/lib/hooks/use-media-query";
 
 type User = {
   id: string;
@@ -52,12 +53,14 @@ export function DashboardShell({
     parentId: string | null;
   } | null>(null);
   const router = useRouter();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
-  const sensors = useSensors(
+  const desktopSensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
     })
   );
+  const noSensors = useSensors();
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event;
@@ -207,7 +210,7 @@ export function DashboardShell({
   return (
     <DndContext
       id="markah-dnd"
-      sensors={sensors}
+      sensors={isDesktop ? desktopSensors : noSensors}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
