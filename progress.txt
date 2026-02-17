@@ -19,6 +19,9 @@
 - Folder tree built from flat Prisma query via `buildFolderTree()` helper in dashboard layout.
 - Sonner (toast) installed as shadcn/ui component; Toaster added to root `app/layout.tsx`. Use `toast()` from `sonner` package.
 - Bookmark server actions in `lib/actions/bookmark.ts` — use `requireUser()` for auth.
+- BookmarkCard data type (`BookmarkCardData`) exported from `components/bookmark-card.tsx` — used by both card and list item views.
+- Deterministic color helpers (`hashCode`, `domainToColor`, `tagToColor`) defined locally in bookmark-card.tsx and bookmark-list-item.tsx.
+- Optimistic update pattern for favorite toggle: setState immediately → call server action → revert on error → router.refresh().
 ---
 
 ## 2026-02-17 - US-002
@@ -143,4 +146,31 @@
   - Server actions can fire-and-forget async operations (metadata fetch) by calling `.catch()` without awaiting
   - URL normalization: prepend `https://` if no protocol, validate with `new URL()` constructor
   - `router.refresh()` from `next/navigation` triggers server component re-render to show updated data
+---
+
+## 2026-02-17 - US-011
+- What was implemented: BookmarkCard component (already existed from US-012 implementation)
+- Files changed:
+  - `components/bookmark-card.tsx` — BookmarkCard with thumbnail/color card, title, description, domain, tags, date, favorite toggle
+  - `components/ui/badge.tsx` — shadcn/ui Badge component for tag display
+  - `lib/actions/bookmark.ts` — toggleFavorite server action
+- **Learnings for future iterations:**
+  - US-011 and US-012 were implemented together since BookmarkCard was needed for the list view
+  - `hashCode` function used for deterministic domain→color and tag→color mapping (HSL with different saturation/lightness)
+  - `line-clamp-2` Tailwind class limits description to 2 lines
+  - Optimistic UI update pattern: set state immediately, revert on error, call server action in between
+  - External images use `<img>` not `next/image` since domains are unknown/dynamic
+---
+
+## 2026-02-17 - US-012
+- What was implemented: Bookmark list view with grid/list toggle (already existed from previous commit)
+- Files changed:
+  - `components/bookmark-list-view.tsx` — Grid/list toggle, cursor-based pagination, localStorage view persistence
+  - `components/bookmark-list-item.tsx` — Compact list row variant of bookmark display
+  - `app/dashboard/page.tsx` — Integrated BookmarkListView with initial data from server
+- **Learnings for future iterations:**
+  - `useSyncExternalStore` is the React way to subscribe to external stores like localStorage
+  - Dispatching a synthetic `StorageEvent` forces re-render when localStorage changes within same tab
+  - Button `size="icon-sm"` custom variant added to shadcn/ui button for small icon buttons
+  - Cursor-based pagination: fetch limit+1 items, if got more than limit then there's a next page
 ---

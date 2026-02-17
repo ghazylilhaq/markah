@@ -198,8 +198,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 11,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "BookmarkCard at components/bookmark-card.tsx. Displays thumbnail (or domain-hashed color card with favicon), title, description (line-clamp-2), domain, colored tag badges (HSL from hash), date. Links open in new tab. Star toggle with optimistic update via toggleFavorite server action. BookmarkListItem at components/bookmark-list-item.tsx for list view."
     },
     {
       "id": "US-012",
@@ -216,8 +216,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 12,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "BookmarkListView at components/bookmark-list-view.tsx. Grid/list toggle with localStorage persistence via useSyncExternalStore. Grid: responsive 1/2/3 columns using BookmarkCard. List: compact rows using BookmarkListItem. Cursor-based pagination with 'Load more' button (20 per page). View mode stored in localStorage key 'markah-view-mode'."
     },
     {
       "id": "US-013",
