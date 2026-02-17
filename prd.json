@@ -231,8 +231,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 13,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "recordVisit server action in lib/actions/bookmark.ts increments visitCount and sets lastVisitedAt. handleVisit called onClick in BookmarkCard and BookmarkListItem. Visit count and relative time displayed in both card and list views."
     },
     {
       "id": "US-014",

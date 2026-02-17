@@ -174,3 +174,14 @@
   - Button `size="icon-sm"` custom variant added to shadcn/ui button for small icon buttons
   - Cursor-based pagination: fetch limit+1 items, if got more than limit then there's a next page
 ---
+
+## 2026-02-17 - US-013
+- What was implemented: Visit tracking on bookmark click (already implemented in earlier stories)
+- Files already containing the implementation:
+  - `lib/actions/bookmark.ts` — `recordVisit` server action (lines 97-107) increments visitCount and sets lastVisitedAt
+  - `components/bookmark-card.tsx` — `handleVisit` called on click (line 110-112), visit count display (lines 277-284), relative time display (lines 285-290)
+  - `components/bookmark-list-item.tsx` — `handleVisit` called on click (line 86-88), visit info display (lines 168-173)
+- **Learnings for future iterations:**
+  - Some stories get implemented ahead of schedule as dependencies of later stories — always check if work already exists before starting
+  - `formatRelativeTime` helper provides human-readable time (just now, Xm ago, Xh ago, Xd ago, Xmo ago)
+---
