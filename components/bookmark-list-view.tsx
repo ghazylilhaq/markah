@@ -8,6 +8,7 @@ import { BookmarkListItem } from "@/components/bookmark-list-item";
 import { getBookmarks } from "@/lib/actions/bookmark";
 import { DraggableBookmarkCard } from "@/components/dnd-bookmark-wrapper";
 import { cn } from "@/lib/utils";
+import type { Folder } from "@/components/sidebar";
 
 type ViewMode = "grid" | "list";
 
@@ -37,11 +38,13 @@ export function BookmarkListView({
   initialCursor,
   filter,
   tagIds,
+  folders,
 }: {
   initialBookmarks: BookmarkCardData[];
   initialCursor: string | null;
   filter?: string;
   tagIds?: string[];
+  folders?: Folder[];
 }) {
   const [viewMode, setViewMode] = useViewMode();
   const [bookmarks, setBookmarks] = useState(initialBookmarks);
@@ -100,7 +103,7 @@ export function BookmarkListView({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {bookmarks.map((bookmark) => (
             <DraggableBookmarkCard key={bookmark.id} bookmark={bookmark}>
-              <BookmarkCard bookmark={bookmark} onDelete={handleDelete} />
+              <BookmarkCard bookmark={bookmark} onDelete={handleDelete} folders={folders} />
             </DraggableBookmarkCard>
           ))}
         </div>
@@ -108,7 +111,7 @@ export function BookmarkListView({
         <div className="space-y-2">
           {bookmarks.map((bookmark) => (
             <DraggableBookmarkCard key={bookmark.id} bookmark={bookmark}>
-              <BookmarkListItem bookmark={bookmark} onDelete={handleDelete} />
+              <BookmarkListItem bookmark={bookmark} onDelete={handleDelete} folders={folders} />
             </DraggableBookmarkCard>
           ))}
         </div>

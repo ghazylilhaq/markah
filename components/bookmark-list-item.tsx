@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { ShareDialog } from "@/components/share-dialog";
+import { MoveToFolderDialog } from "@/components/move-to-folder-dialog";
+import type { Folder } from "@/components/sidebar";
 
 function getDomain(url: string): string {
   try {
@@ -78,14 +80,17 @@ function formatRelativeTime(dateStr: string): string {
 export function BookmarkListItem({
   bookmark,
   onDelete,
+  folders,
 }: {
   bookmark: BookmarkCardData;
   onDelete?: (id: string) => void;
+  folders?: Folder[];
 }) {
   const [isFavorite, setIsFavorite] = useState(bookmark.isFavorite);
   const [toggling, setToggling] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const router = useRouter();
@@ -214,6 +219,7 @@ export function BookmarkListItem({
             className="min-h-[44px]"
             onClick={(e) => {
               e.stopPropagation();
+              setMoveOpen(true);
             }}
           >
             <FolderInput className="mr-2 h-4 w-4" />
@@ -337,6 +343,15 @@ export function BookmarkListItem({
         id={bookmark.id}
         name={bookmark.title || bookmark.url}
       />
+
+      {folders && (
+        <MoveToFolderDialog
+          bookmarkId={bookmark.id}
+          folders={folders}
+          open={moveOpen}
+          onOpenChange={setMoveOpen}
+        />
+      )}
     </div>
   );
 }

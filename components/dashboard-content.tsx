@@ -6,17 +6,20 @@ import { BookmarkListView } from "@/components/bookmark-list-view";
 import { TagFilterBar, type TagForFilter } from "@/components/tag-filter-bar";
 import { searchBookmarks, getBookmarks } from "@/lib/actions/bookmark";
 import type { BookmarkCardData } from "@/components/bookmark-card";
+import type { Folder } from "@/components/sidebar";
 
 export function DashboardContent({
   initialBookmarks,
   initialCursor,
   filter,
   userTags,
+  folders,
 }: {
   initialBookmarks: BookmarkCardData[];
   initialCursor: string | null;
   filter?: string;
   userTags: TagForFilter[];
+  folders?: Folder[];
 }) {
   const [searchResults, setSearchResults] = useState<BookmarkCardData[] | null>(
     null
@@ -126,6 +129,7 @@ export function DashboardContent({
           initialCursor={null}
           filter={filter}
           tagIds={selectedTagIds}
+          folders={folders}
         />
       ) : showFiltered ? (
         <BookmarkListView
@@ -134,6 +138,7 @@ export function DashboardContent({
           initialCursor={filteredCursor}
           filter={filter}
           tagIds={selectedTagIds}
+          folders={folders}
         />
       ) : (
         <BookmarkListView
@@ -141,6 +146,7 @@ export function DashboardContent({
           initialBookmarks={initialBookmarks}
           initialCursor={initialCursor}
           filter={filter}
+          folders={folders}
         />
       )}
     </div>
