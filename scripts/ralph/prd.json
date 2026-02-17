@@ -434,8 +434,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 24,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "ShareDialog component at components/share-dialog.tsx. Reusable for both bookmarks and folders (type prop). Toggle uses Switch component from shadcn/ui. Share ID generated via crypto.randomUUID() (12-char slug). Server actions: toggleBookmarkShare/getBookmarkShareInfo in lib/actions/bookmark.ts, toggleFolderShare/getFolderShareInfo in lib/actions/folder.ts. Share button (Share2 icon) added to BookmarkCard and BookmarkListItem alongside edit/delete. Share option added to folder three-dot DropdownMenu in sidebar. Copy to clipboard via navigator.clipboard.writeText."
     },
     {
       "id": "US-025",
@@ -452,8 +452,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 25,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Public share page at /share/[shareId]. Server component queries Prisma for bookmark or folder by shareId. Bookmark view: single large card with thumbnail/color card, title, description, tags, Visit Link button. Folder view: grid of bookmark cards. 404 via notFound() if shareId not found or not public. Minimal read-only layout with Markah branding header. No edit/delete controls."
     },
     {
       "id": "US-026",

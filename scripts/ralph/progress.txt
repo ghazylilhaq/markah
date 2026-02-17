@@ -50,6 +50,9 @@
 - @dnd-kit/core v6: DndContext wraps DashboardShell (sidebar + content). useDraggable in wrapper component, useDroppable in FolderItem. PointerSensor with distance: 8 to avoid click interference.
 - Combining useDraggable + useDroppable on same element: `ref={(node) => { setDropRef(node); setDragRef(node); }}` with spread of both listeners/attributes.
 - Folder reordering uses FolderDropGap droppable components between items (type: "folder-gap" with parentId + index data).
+- ShareDialog component at components/share-dialog.tsx — reusable for bookmarks and folders via `type` prop. Uses shadcn/ui Switch.
+- Share server actions: toggleBookmarkShare/getBookmarkShareInfo in bookmark.ts, toggleFolderShare/getFolderShareInfo in folder.ts.
+- Share URL format: /share/[shareId] — shareId generated via crypto.randomUUID().slice(0,12), preserved across public/private toggles.
 - moveFolderToParent and reorderFolders server actions in lib/actions/folder.ts for folder drag-and-drop.
 
 # Ralph Progress Log
@@ -408,4 +411,35 @@ Started: Tue Feb 17 02:05:07 WIB 2026
   - Depth enforcement for folder moves must check BOTH the target parent depth AND the moved folder's subtree depth to prevent deeply nested trees from exceeding the limit
   - `collectDescendantIds` is also useful for preventing circular nesting (can't move a folder into its own descendant)
   - Reorder within same parent: remove from current position, adjust insert index if moving downward (targetIndex > currentIndex means subtract 1)
+---
+
+## 2026-02-17 - US-024
+- What was implemented: Public sharing toggle and share URL for bookmarks and folders
+- Files changed:
+  - `components/share-dialog.tsx` — New reusable ShareDialog component for both bookmarks and folders. Switch toggle for public/private, share URL display, copy to clipboard.
+  - `components/ui/switch.tsx` — shadcn/ui Switch component (installed)
+  - `lib/actions/bookmark.ts` — Added `toggleBookmarkShare` (generates shareId via crypto.randomUUID, toggles isPublic) and `getBookmarkShareInfo` server actions
+  - `lib/actions/folder.ts` — Added `toggleFolderShare` and `getFolderShareInfo` server actions
+  - `components/bookmark-card.tsx` — Added Share2 icon button and ShareDialog integration
+  - `components/bookmark-list-item.tsx` — Added Share2 icon button and ShareDialog integration
+  - `components/sidebar.tsx` — Added Share option to folder three-dot DropdownMenu with ShareDialog
+- **Learnings for future iterations:**
+  - `crypto.randomUUID()` is built into Node.js — no need for nanoid/cuid packages for generating share IDs
+  - ShareDialog uses `useEffect` to fetch share info on open — pattern for lazy-loading dialog data
+  - shadcn/ui Switch component installed via `npx shadcn@latest add switch --yes`
+  - Reusable dialog pattern: pass `type` prop ("bookmark" | "folder") to dispatch to correct server actions
+  - shareId is preserved when toggling private — re-enabling produces the same URL
+---
+
+## 2026-02-17 - US-025
+- What was implemented: Public share page (read-only) at /share/[shareId]
+- Files changed:
+  - `app/share/[shareId]/page.tsx` — Server component: queries bookmark by shareId first, then folder. Renders SharedBookmarkCard (single large card) for bookmarks, grid of SharedBookmarkGridCard for folders. 404 via notFound() if not found or not public.
+  - `scripts/ralph/prd.json` — Marked US-025 as passes: true
+- **Learnings for future iterations:**
+  - Next.js `notFound()` from `next/navigation` triggers the default 404 page — no custom 404 needed
+  - Prisma `findUnique` with `shareId` works because shareId has `@unique` constraint on both Bookmark and Folder models
+  - Share page is a server component — no "use client" needed since there's no interactivity (read-only)
+  - Reused hashCode/domainToColor/tagToColor helpers locally (duplicated from bookmark-card.tsx) since server components can't import from client component files easily
+  - Middleware already allows `/share/*` routes without auth (set up in US-005)
 ---
