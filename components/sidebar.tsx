@@ -15,6 +15,7 @@ import {
   ChevronRight,
   FolderPlus,
 } from "lucide-react";
+import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -217,6 +218,11 @@ function FolderItem({
   const hasChildren = folder.children.length > 0;
   const showCreateInput = isCreating && creatingParentId === folder.id;
 
+  const { isOver, setNodeRef: setDropRef } = useDroppable({
+    id: `folder-${folder.id}`,
+    data: { type: "folder", folderId: folder.id, folderName: folder.name },
+  });
+
   useEffect(() => {
     if (isRenaming && renameInputRef.current) {
       renameInputRef.current.focus();
@@ -294,11 +300,14 @@ function FolderItem({
   return (
     <>
       <div
+        ref={setDropRef}
         className={cn(
           "group flex items-center justify-between rounded-lg pr-1 transition-colors",
-          isActive
-            ? "bg-stone-200 text-stone-900"
-            : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+          isOver
+            ? "bg-blue-100 ring-2 ring-blue-400 text-blue-900"
+            : isActive
+              ? "bg-stone-200 text-stone-900"
+              : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
         )}
       >
         <div className="flex flex-1 items-center min-w-0">

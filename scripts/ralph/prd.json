@@ -399,8 +399,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 22,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "@dnd-kit/core v6 with DndContext in DashboardShell. DraggableBookmarkCard wrapper in components/dnd-bookmark-wrapper.tsx. Sidebar FolderItem uses useDroppable with blue highlight on hover. addBookmarkToFolder server action in lib/actions/bookmark.ts. DragOverlay shows compact card preview. PointerSensor with 8px distance activation constraint to avoid interfering with clicks."
     },
     {
       "id": "US-023",

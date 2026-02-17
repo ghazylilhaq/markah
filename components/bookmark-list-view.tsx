@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { BookmarkCard, type BookmarkCardData } from "@/components/bookmark-card";
 import { BookmarkListItem } from "@/components/bookmark-list-item";
 import { getBookmarks } from "@/lib/actions/bookmark";
+import { DraggableBookmarkCard } from "@/components/dnd-bookmark-wrapper";
 import { cn } from "@/lib/utils";
 
 type ViewMode = "grid" | "list";
@@ -98,13 +99,17 @@ export function BookmarkListView({
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {bookmarks.map((bookmark) => (
-            <BookmarkCard key={bookmark.id} bookmark={bookmark} onDelete={handleDelete} />
+            <DraggableBookmarkCard key={bookmark.id} bookmark={bookmark}>
+              <BookmarkCard bookmark={bookmark} onDelete={handleDelete} />
+            </DraggableBookmarkCard>
           ))}
         </div>
       ) : (
         <div className="space-y-2">
           {bookmarks.map((bookmark) => (
-            <BookmarkListItem key={bookmark.id} bookmark={bookmark} onDelete={handleDelete} />
+            <DraggableBookmarkCard key={bookmark.id} bookmark={bookmark}>
+              <BookmarkListItem bookmark={bookmark} onDelete={handleDelete} />
+            </DraggableBookmarkCard>
           ))}
         </div>
       )}

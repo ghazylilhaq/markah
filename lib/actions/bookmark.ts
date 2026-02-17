@@ -409,6 +409,32 @@ export async function searchBookmarks(
   };
 }
 
+export async function addBookmarkToFolder(bookmarkId: string, folderId: string) {
+  const user = await requireUser();
+
+  const bookmark = await prisma.bookmark.findFirst({
+    where: { id: bookmarkId, userId: user.id },
+  });
+  if (!bookmark) throw new Error("Bookmark not found");
+
+  const folder = await prisma.folder.findFirst({
+    where: { id: folderId, userId: user.id },
+  });
+  if (!folder) throw new Error("Folder not found");
+
+  // Check if already in this folder
+  const existing = await prisma.bookmarkFolder.findFirst({
+    where: { bookmarkId, folderId },
+  });
+  if (existing) return { alreadyInFolder: true };
+
+  await prisma.bookmarkFolder.create({
+    data: { bookmarkId, folderId },
+  });
+
+  return { success: true };
+}
+
 async function fetchAndUpdateMetadata(bookmarkId: string, url: string) {
   const preview = await fetchLinkPreview(url);
 
