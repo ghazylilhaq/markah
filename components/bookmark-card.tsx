@@ -1,0 +1,202 @@
+"use client";
+
+import { useState } from "react";
+import { Star, ExternalLink } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { toggleFavorite } from "@/lib/actions/bookmark";
+import { useRouter } from "next/navigation";
+
+type Tag = {
+  id: string;
+  name: string;
+  color: string | null;
+};
+
+export type BookmarkCardData = {
+  id: string;
+  url: string;
+  title: string | null;
+  description: string | null;
+  image: string | null;
+  favicon: string | null;
+  isFavorite: boolean;
+  createdAt: string;
+  tags: Tag[];
+};
+
+function getDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace("www.", "");
+  } catch {
+    return url;
+  }
+}
+
+function hashCode(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function domainToColor(domain: string): string {
+  const h = hashCode(domain) % 360;
+  return `hsl(${h}, 40%, 85%)`;
+}
+
+function tagToColor(tagName: string): string {
+  const h = hashCode(tagName) % 360;
+  return `hsl(${h}, 55%, 50%)`;
+}
+
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export function BookmarkCard({ bookmark }: { bookmark: BookmarkCardData }) {
+  const [isFavorite, setIsFavorite] = useState(bookmark.isFavorite);
+  const [toggling, setToggling] = useState(false);
+  const router = useRouter();
+  const domain = getDomain(bookmark.url);
+
+  async function handleToggleFavorite(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (toggling) return;
+
+    setToggling(true);
+    const prev = isFavorite;
+    setIsFavorite(!prev);
+
+    try {
+      await toggleFavorite(bookmark.id);
+      router.refresh();
+    } catch {
+      setIsFavorite(prev);
+    } finally {
+      setToggling(false);
+    }
+  }
+
+  return (
+    <div className="group overflow-hidden rounded-lg border border-stone-200 bg-white transition-shadow hover:shadow-md">
+      {/* Thumbnail / Color card */}
+      <a
+        href={bookmark.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="relative block h-40 overflow-hidden"
+      >
+        {bookmark.image ? (
+          <img
+            src={bookmark.image}
+            alt={bookmark.title || ""}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div
+            className="flex h-full w-full items-center justify-center"
+            style={{ backgroundColor: domainToColor(domain) }}
+          >
+            {bookmark.favicon ? (
+              <img
+                src={bookmark.favicon}
+                alt=""
+                className="h-10 w-10"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }}
+              />
+            ) : (
+              <ExternalLink className="h-8 w-8 text-stone-400" />
+            )}
+          </div>
+        )}
+      </a>
+
+      {/* Card body */}
+      <div className="p-3">
+        {/* Title + Favorite */}
+        <div className="flex items-start gap-2">
+          <a
+            href={bookmark.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-w-0 flex-1"
+          >
+            <h3 className="truncate text-sm font-semibold text-stone-900 hover:underline">
+              {bookmark.title || bookmark.url}
+            </h3>
+          </a>
+          <button
+            onClick={handleToggleFavorite}
+            disabled={toggling}
+            className="shrink-0 p-0.5 text-stone-400 transition-colors hover:text-amber-500"
+            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+          >
+            <Star
+              className={cn(
+                "h-4 w-4",
+                isFavorite && "fill-amber-400 text-amber-400"
+              )}
+            />
+          </button>
+        </div>
+
+        {/* Description */}
+        {bookmark.description && (
+          <p className="mt-1 line-clamp-2 text-xs text-stone-500">
+            {bookmark.description}
+          </p>
+        )}
+
+        {/* Domain + Date */}
+        <div className="mt-2 flex items-center gap-2 text-xs text-stone-400">
+          {bookmark.favicon && (
+            <img
+              src={bookmark.favicon}
+              alt=""
+              className="h-3.5 w-3.5"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          )}
+          <span className="truncate">{domain}</span>
+          <span className="text-stone-300">·</span>
+          <span className="shrink-0">{formatDate(bookmark.createdAt)}</span>
+        </div>
+
+        {/* Tags */}
+        {bookmark.tags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {bookmark.tags.map((tag) => (
+              <Badge
+                key={tag.id}
+                variant="secondary"
+                className="text-[10px] px-1.5 py-0"
+                style={{
+                  backgroundColor: `${tagToColor(tag.name)}20`,
+                  color: tagToColor(tag.name),
+                  borderColor: `${tagToColor(tag.name)}40`,
+                  borderWidth: "1px",
+                }}
+              >
+                {tag.name}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

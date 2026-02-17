@@ -35,6 +35,26 @@ export async function addBookmark(url: string) {
   return { success: true, bookmarkId: bookmark.id };
 }
 
+export async function toggleFavorite(bookmarkId: string) {
+  const user = await requireUser();
+
+  const bookmark = await prisma.bookmark.findFirst({
+    where: { id: bookmarkId, userId: user.id },
+    select: { isFavorite: true },
+  });
+
+  if (!bookmark) {
+    throw new Error("Bookmark not found");
+  }
+
+  await prisma.bookmark.update({
+    where: { id: bookmarkId },
+    data: { isFavorite: !bookmark.isFavorite },
+  });
+
+  return { isFavorite: !bookmark.isFavorite };
+}
+
 async function fetchAndUpdateMetadata(bookmarkId: string, url: string) {
   const preview = await fetchLinkPreview(url);
 
