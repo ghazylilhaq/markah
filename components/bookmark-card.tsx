@@ -1,9 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Star, ExternalLink, Pencil, Trash2, Share2 } from "lucide-react";
+import { Star, ExternalLink, Pencil, Trash2, Share2, MoreVertical, FolderInput } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toggleFavorite, recordVisit, deleteBookmark } from "@/lib/actions/bookmark";
 import { useRouter } from "next/navigation";
 import { EditBookmarkDialog } from "@/components/edit-bookmark-dialog";
@@ -184,13 +190,70 @@ export function BookmarkCard({
               {bookmark.title || bookmark.url}
             </h3>
           </a>
+          {/* Mobile overflow menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-stone-400 hover:text-stone-600 md:hidden"
+                aria-label="More actions"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="min-h-[44px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditOpen(true);
+                }}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="min-h-[44px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <FolderInput className="mr-2 h-4 w-4" />
+                Move to Folder
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="min-h-[44px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShareOpen(true);
+                }}
+              >
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="min-h-[44px] text-red-600 focus:text-red-600"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDeleteDialog(true);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {/* Desktop hover-reveal buttons */}
           <button
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               setShareOpen(true);
             }}
-            className="shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-stone-600 group-hover:opacity-100"
+            className="hidden shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-stone-600 group-hover:opacity-100 md:inline-flex"
             aria-label="Share bookmark"
           >
             <Share2 className="h-4 w-4" />
@@ -201,7 +264,7 @@ export function BookmarkCard({
               e.stopPropagation();
               setEditOpen(true);
             }}
-            className="shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-stone-600 group-hover:opacity-100"
+            className="hidden shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-stone-600 group-hover:opacity-100 md:inline-flex"
             aria-label="Edit bookmark"
           >
             <Pencil className="h-4 w-4" />
@@ -212,7 +275,7 @@ export function BookmarkCard({
               e.stopPropagation();
               setShowDeleteDialog(true);
             }}
-            className="shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-red-500 group-hover:opacity-100"
+            className="hidden shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-red-500 group-hover:opacity-100 md:inline-flex"
             aria-label="Delete bookmark"
           >
             <Trash2 className="h-4 w-4" />
