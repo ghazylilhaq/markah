@@ -1,0 +1,33 @@
+## Codebase Patterns
+- Use Prisma v6 (not v7) — v7 requires a `prisma.config.ts` and removed `url` from schema datasource
+- PostgreSQL runs in Docker container `pomo-city-postgres-1` with user `pomo`, password `pomo` on port 5432
+- Prisma client singleton is at `lib/prisma.ts` — import from `@/lib/prisma`
+- Project uses bun as package manager, Next.js 16, shadcn/ui, Tailwind v4
+- Path alias `@/*` maps to project root
+- NextAuth.js v5 (beta.30) with JWT strategy and credentials provider — no Prisma adapter
+- Auth config lives in `lib/auth.ts`, exports `{ handlers, signIn, signOut, auth }`
+- Session helper functions in `lib/session.ts` — use `getCurrentUser()` or `requireUser()` for auth checks
+- Server actions go in `lib/actions/` directory
+- shadcn/ui with "new-york" style, stone base color, lucide icons
+- `next lint` doesn't work (Next.js 16 changed CLI); use `npx eslint` directly
+- Dashboard layout uses server component (app/dashboard/layout.tsx) to fetch data, passes to client DashboardShell
+- Sidebar is client component (components/sidebar.tsx) that reads ?folder= query param for active state
+- Mobile sidebar uses shadcn/ui Sheet component (left side) with hamburger menu trigger
+- Folder tree built from flat Prisma query via buildFolderTree() helper in dashboard layout
+- Sonner toast: import `toast` from `sonner` package, `Toaster` from `components/ui/sonner.tsx`
+- Use `<img>` (not next/image) for external images — arbitrary domains can't be preconfigured
+- Pass dates as ISO strings from server to client (Date objects can't cross boundary)
+- For localStorage state use `useSyncExternalStore` (not useState + useEffect) — ESLint rule
+- Avoid `setState` inside `useEffect` — ESLint `react-hooks/set-state-in-effect` rule
+- Cursor-based pagination: `take: limit + 1`, check `length > limit` for hasMore
+- @dnd-kit/core v6: DndContext wraps DashboardShell, useDraggable in wrapper, useDroppable in FolderItem
+- PointerSensor with distance: 8 to avoid click interference
+- Folder type exported from `components/sidebar.tsx`
+- Hover-reveal buttons use `opacity-0 group-hover:opacity-100` pattern
+- AlertDialog for destructive confirmations, Dialog for edit forms
+- Parent-to-child onDelete callback: parent filters state, child calls after server action
+
+# Ralph Progress Log
+Started: Mon Feb 17 2026
+---
+

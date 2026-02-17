@@ -20,7 +20,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 1,
-      "passes": true,
+      "passes": false,
       "notes": "This is foundational — other sidebar work (US-006) depends on Sheet working correctly. The current onClick wrapper at dashboard-shell.tsx line 245 closes Sheet on ANY internal tap."
     },
     {
@@ -39,7 +39,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 2,
-      "passes": true,
+      "passes": false,
       "notes": "Use CSS classes (md:hidden / hidden md:flex) for show/hide — no JS media query needed. The overflow menu includes a 'Move to Folder' item but it won't be functional until US-003."
     },
     {
@@ -60,7 +60,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 3,
-      "passes": true,
+      "passes": false,
       "notes": "Folder list is already available as props in DashboardShell → BookmarkListView → BookmarkCard. Thread it down. Reuse existing moveBookmarkToFolder or addBookmarkToFolder from lib/actions/bookmark.ts. May need a removeBookmarkFromAllFolders action for the 'Unsorted' option."
     },
     {
@@ -76,7 +76,7 @@
         "Typecheck passes"
       ],
       "priority": 4,
-      "passes": true,
+      "passes": false,
       "notes": "useSyncExternalStore is required by project ESLint rules (no setState in useEffect). The hook will be reused by US-009 (edit dialog full-screen)."
     },
     {
@@ -95,7 +95,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 5,
-      "passes": true,
+      "passes": false,
       "notes": "tagToColor generates hsl(h, 55%, 50%) currently. Changing to hsl(h, 55%, 35%) for text with higher-opacity backgrounds should meet WCAG AA. The function appears in bookmark-card.tsx, bookmark-list-item.tsx, edit-bookmark-dialog.tsx, and share page."
     },
     {
@@ -111,7 +111,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 6,
-      "passes": true,
+      "passes": false,
       "notes": "Similar pattern to US-002 — use CSS breakpoints to conditionally show/hide. The trigger is at sidebar.tsx line ~432."
     },
     {
@@ -129,7 +129,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 7,
-      "passes": true,
+      "passes": false,
       "notes": "Many small changes across files. Use min-h-[44px] min-w-[44px] with centered content, or increase padding. The tag filter horizontal scroll replaces the current wrapping layout."
     },
     {
@@ -146,7 +146,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 8,
-      "passes": true,
+      "passes": false,
       "notes": "Quick wins — just Tailwind class changes. Low risk."
     },
     {
@@ -164,7 +164,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 9,
-      "passes": true,
+      "passes": false,
       "notes": "The list item needs a responsive layout change — flexbox column below sm:, row above. Keep the overflow menu (US-002) working in both layouts."
     },
     {
@@ -179,7 +179,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 10,
-      "passes": true,
+      "passes": false,
       "notes": "The QuickAddBar is in components/quick-add-bar.tsx. Actually QuickAddWithSuggestions wraps it — make sure sticky applies at the right level."
     },
     {
@@ -197,7 +197,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 11,
-      "passes": true,
+      "passes": false,
       "notes": "Can use responsive Tailwind classes on DialogContent: max-h-dvh md:max-h-[85dvh] w-full md:max-w-lg rounded-none md:rounded-lg. May need to use the useMediaQuery hook from US-004 if CSS-only approach doesn't work with shadcn Dialog."
     },
     {
@@ -211,7 +211,7 @@
         "Typecheck passes"
       ],
       "priority": 12,
-      "passes": true,
+      "passes": false,
       "notes": "Small change. Use the existing Loader2 icon from lucide-react that's already used elsewhere in the codebase."
     }
   ]
