@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Bookmark, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { tagBadgeStyle } from "@/lib/utils/tag-color";
 import { prisma } from "@/lib/prisma";
 
 function hashCode(str: string): number {
@@ -17,11 +18,6 @@ function hashCode(str: string): number {
 function domainToColor(domain: string): string {
   const h = hashCode(domain) % 360;
   return `hsl(${h}, 40%, 85%)`;
-}
-
-function tagToColor(tagName: string): string {
-  const h = hashCode(tagName) % 360;
-  return `hsl(${h}, 55%, 50%)`;
 }
 
 function getDomain(url: string): string {
@@ -117,12 +113,7 @@ function SharedBookmarkCard({ bookmark }: { bookmark: BookmarkWithTags }) {
                 key={tag.id}
                 variant="secondary"
                 className="text-xs px-2 py-0.5"
-                style={{
-                  backgroundColor: `${tagToColor(tag.name)}20`,
-                  color: tagToColor(tag.name),
-                  borderColor: `${tagToColor(tag.name)}40`,
-                  borderWidth: "1px",
-                }}
+                style={tagBadgeStyle(tag.name)}
               >
                 {tag.name}
               </Badge>
@@ -208,13 +199,8 @@ function SharedBookmarkGridCard({ bookmark }: { bookmark: BookmarkWithTags }) {
               <Badge
                 key={tag.id}
                 variant="secondary"
-                className="text-[10px] px-1.5 py-0"
-                style={{
-                  backgroundColor: `${tagToColor(tag.name)}20`,
-                  color: tagToColor(tag.name),
-                  borderColor: `${tagToColor(tag.name)}40`,
-                  borderWidth: "1px",
-                }}
+                className="text-xs px-1.5 py-0"
+                style={tagBadgeStyle(tag.name)}
               >
                 {tag.name}
               </Badge>
@@ -293,7 +279,7 @@ export default async function SharePage({
                 Markah
               </span>
             </Link>
-            <span className="text-sm text-stone-400">
+            <span className="max-w-[200px] truncate text-sm text-stone-400">
               / {folder.name}
             </span>
           </div>

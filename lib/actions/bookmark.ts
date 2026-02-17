@@ -441,6 +441,42 @@ export async function addBookmarkToFolder(bookmarkId: string, folderId: string) 
   return { success: true };
 }
 
+export async function moveBookmarkToFolder(bookmarkId: string, folderId: string) {
+  const user = await requireUser();
+
+  const bookmark = await prisma.bookmark.findFirst({
+    where: { id: bookmarkId, userId: user.id },
+  });
+  if (!bookmark) throw new Error("Bookmark not found");
+
+  const folder = await prisma.folder.findFirst({
+    where: { id: folderId, userId: user.id },
+  });
+  if (!folder) throw new Error("Folder not found");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.bookmarkFolder.deleteMany({ where: { bookmarkId } });
+    await tx.bookmarkFolder.create({ data: { bookmarkId, folderId } });
+  });
+
+  revalidatePath("/dashboard", "layout");
+  return { success: true };
+}
+
+export async function removeBookmarkFromAllFolders(bookmarkId: string) {
+  const user = await requireUser();
+
+  const bookmark = await prisma.bookmark.findFirst({
+    where: { id: bookmarkId, userId: user.id },
+  });
+  if (!bookmark) throw new Error("Bookmark not found");
+
+  await prisma.bookmarkFolder.deleteMany({ where: { bookmarkId } });
+
+  revalidatePath("/dashboard", "layout");
+  return { success: true };
+}
+
 export async function toggleBookmarkShare(bookmarkId: string) {
   const user = await requireUser();
 

@@ -28,6 +28,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { BookmarkCardData } from "@/components/bookmark-card";
+import { useMediaQuery } from "@/lib/hooks/use-media-query";
 
 type User = {
   id: string;
@@ -52,12 +53,14 @@ export function DashboardShell({
     parentId: string | null;
   } | null>(null);
   const router = useRouter();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
-  const sensors = useSensors(
+  const desktopSensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
     })
   );
+  const noSensors = useSensors();
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event;
@@ -207,7 +210,7 @@ export function DashboardShell({
   return (
     <DndContext
       id="markah-dnd"
-      sensors={sensors}
+      sensors={isDesktop ? desktopSensors : noSensors}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
@@ -242,8 +245,8 @@ export function DashboardShell({
                       Markah
                     </span>
                   </SheetTitle>
-                  <div onClick={() => setOpen(false)}>
-                    <Sidebar folders={folders} />
+                  <div className="overflow-y-auto max-h-[calc(100dvh-4rem)]">
+                    <Sidebar folders={folders} onNavigate={() => setOpen(false)} />
                   </div>
                 </SheetContent>
               </Sheet>
@@ -273,7 +276,7 @@ export function DashboardShell({
           </header>
 
           {/* Content */}
-          <main className="flex-1 overflow-y-auto p-6">{children}</main>
+          <main className="flex-1 overflow-y-auto p-3 md:p-6">{children}</main>
         </div>
       </div>
 

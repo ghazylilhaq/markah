@@ -74,11 +74,11 @@ export function QuickAddBar() {
       />
       <Button type="submit" disabled={loading || !url.trim()}>
         {loading ? (
-          <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin sm:mr-1.5" />
         ) : (
-          <Plus className="mr-1.5 h-4 w-4" />
+          <Plus className="h-4 w-4 sm:mr-1.5" />
         )}
-        {loading ? "Saving..." : "Save"}
+        <span className="hidden sm:inline">{loading ? "Saving..." : "Save"}</span>
       </Button>
     </form>
   );

@@ -39,7 +39,13 @@ export function TagFilterBar({
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-1.5">
+      <div
+        className="flex gap-1.5 overflow-x-auto whitespace-nowrap"
+        style={{
+          maskImage: "linear-gradient(to right, transparent 0, black 8px, black calc(100% - 8px), transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to right, transparent 0, black 8px, black calc(100% - 8px), transparent 100%)",
+        }}
+      >
         {tags.map((tag) => {
           const isSelected = selectedTagIds.includes(tag.id);
           const color = tagColor(tag.name);
@@ -49,7 +55,7 @@ export function TagFilterBar({
               type="button"
               onClick={() => onToggleTag(tag.id)}
               className={cn(
-                "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-all",
+                "inline-flex items-center rounded-full px-2.5 min-h-[44px] md:min-h-0 md:py-0.5 text-xs font-medium transition-all",
                 isSelected
                   ? "ring-2 ring-stone-400 ring-offset-1"
                   : "opacity-60 hover:opacity-100"

@@ -4,6 +4,29 @@ import { QuickAddWithSuggestions } from "@/components/quick-add-with-suggestions
 import { DashboardContent } from "@/components/dashboard-content";
 import { getBookmarks, getUserTags } from "@/lib/actions/bookmark";
 import { prisma } from "@/lib/prisma";
+import type { Folder } from "@/components/sidebar";
+
+function buildFolderTree(
+  folders: { id: string; name: string; parentId: string | null; position: number }[]
+): Folder[] {
+  const map = new Map<string, Folder>();
+  const roots: Folder[] = [];
+
+  for (const f of folders) {
+    map.set(f.id, { id: f.id, name: f.name, parentId: f.parentId, position: f.position, children: [] });
+  }
+
+  for (const f of folders) {
+    const node = map.get(f.id)!;
+    if (f.parentId && map.has(f.parentId)) {
+      map.get(f.parentId)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  return roots;
+}
 
 function getFilterLabel(
   filter: string | undefined,
@@ -38,10 +61,17 @@ export default async function DashboardPage({
     folderName = folder?.name ?? null;
   }
 
-  const [{ bookmarks, nextCursor }, userTags] = await Promise.all([
+  const [{ bookmarks, nextCursor }, userTags, allFolders] = await Promise.all([
     getBookmarks(undefined, 20, filter),
     getUserTags(),
+    prisma.folder.findMany({
+      where: { userId: user.id },
+      select: { id: true, name: true, parentId: true, position: true },
+      orderBy: { position: "asc" },
+    }),
   ]);
+
+  const folderTree = buildFolderTree(allFolders);
 
   const heading = getFilterLabel(filter, folderName);
 
@@ -60,13 +90,16 @@ export default async function DashboardPage({
         </p>
       </div>
 
-      <QuickAddWithSuggestions />
+      <div className="sticky top-0 z-10 -mx-3 bg-stone-50 px-3 py-2 md:-mx-6 md:px-6">
+        <QuickAddWithSuggestions />
+      </div>
 
       <DashboardContent
         initialBookmarks={bookmarks}
         initialCursor={nextCursor}
         filter={filter}
         userTags={userTags}
+        folders={folderTree}
       />
     </div>
   );

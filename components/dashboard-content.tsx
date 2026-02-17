@@ -1,22 +1,26 @@
 "use client";
 
 import { useState, useCallback, useEffect, useTransition, useRef } from "react";
+import { Loader2 } from "lucide-react";
 import { SearchBar } from "@/components/search-bar";
 import { BookmarkListView } from "@/components/bookmark-list-view";
 import { TagFilterBar, type TagForFilter } from "@/components/tag-filter-bar";
 import { searchBookmarks, getBookmarks } from "@/lib/actions/bookmark";
 import type { BookmarkCardData } from "@/components/bookmark-card";
+import type { Folder } from "@/components/sidebar";
 
 export function DashboardContent({
   initialBookmarks,
   initialCursor,
   filter,
   userTags,
+  folders,
 }: {
   initialBookmarks: BookmarkCardData[];
   initialCursor: string | null;
   filter?: string;
   userTags: TagForFilter[];
+  folders?: Folder[];
 }) {
   const [searchResults, setSearchResults] = useState<BookmarkCardData[] | null>(
     null
@@ -25,7 +29,7 @@ export function DashboardContent({
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [filteredBookmarks, setFilteredBookmarks] = useState<BookmarkCardData[] | null>(null);
   const [filteredCursor, setFilteredCursor] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   const isInitialMount = useRef(true);
 
   const handleResults = useCallback(
@@ -119,13 +123,18 @@ export function DashboardContent({
         </p>
       )}
 
-      {isSearching ? (
+      {isPending ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-stone-400" />
+        </div>
+      ) : isSearching ? (
         <BookmarkListView
           key={`search-${searchQuery}-${selectedTagIds.join(",")}`}
           initialBookmarks={searchResults}
           initialCursor={null}
           filter={filter}
           tagIds={selectedTagIds}
+          folders={folders}
         />
       ) : showFiltered ? (
         <BookmarkListView
@@ -134,6 +143,7 @@ export function DashboardContent({
           initialCursor={filteredCursor}
           filter={filter}
           tagIds={selectedTagIds}
+          folders={folders}
         />
       ) : (
         <BookmarkListView
@@ -141,6 +151,7 @@ export function DashboardContent({
           initialBookmarks={initialBookmarks}
           initialCursor={initialCursor}
           filter={filter}
+          folders={folders}
         />
       )}
     </div>

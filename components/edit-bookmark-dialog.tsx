@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { tagToColor, tagBadgeStyle } from "@/lib/utils/tag-color";
 import {
   getBookmarkDetails,
   getUserTags,
@@ -22,21 +23,6 @@ import {
   updateBookmark,
 } from "@/lib/actions/bookmark";
 import { useRouter } from "next/navigation";
-
-function hashCode(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
-function tagToColor(tagName: string): string {
-  const h = hashCode(tagName) % 360;
-  return `hsl(${h}, 55%, 50%)`;
-}
 
 type FolderOption = { id: string; name: string; parentId: string | null };
 
@@ -138,7 +124,7 @@ export function EditBookmarkDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="h-dvh max-h-dvh w-full max-w-full rounded-none top-0 left-0 translate-x-0 translate-y-0 flex flex-col md:h-auto md:max-h-[85dvh] md:max-w-lg md:rounded-lg md:top-[50%] md:left-[50%] md:translate-x-[-50%] md:translate-y-[-50%]">
         <DialogHeader>
           <DialogTitle>Edit Bookmark</DialogTitle>
           <DialogDescription>Update bookmark details, tags, and folder assignments.</DialogDescription>
@@ -149,7 +135,7 @@ export function EditBookmarkDialog({
             Loading...
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto flex-1 min-h-0">
             {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="edit-title">Title</Label>
@@ -181,18 +167,13 @@ export function EditBookmarkDialog({
                     key={tag}
                     variant="secondary"
                     className="gap-1 pr-1 text-xs"
-                    style={{
-                      backgroundColor: `${tagToColor(tag)}20`,
-                      color: tagToColor(tag),
-                      borderColor: `${tagToColor(tag)}40`,
-                      borderWidth: "1px",
-                    }}
+                    style={tagBadgeStyle(tag)}
                   >
                     {tag}
                     <button
                       type="button"
                       onClick={() => removeTag(tag)}
-                      className="rounded-full p-0.5 hover:bg-black/10"
+                      className="rounded-full min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:p-0.5 flex items-center justify-center hover:bg-black/10"
                     >
                       <X className="h-3 w-3" />
                     </button>

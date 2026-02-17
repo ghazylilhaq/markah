@@ -1,9 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Star, ExternalLink, Pencil, Trash2, Share2 } from "lucide-react";
+import { Star, ExternalLink, Pencil, Trash2, Share2, MoreVertical, FolderInput } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { tagBadgeStyle } from "@/lib/utils/tag-color";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toggleFavorite, recordVisit, deleteBookmark } from "@/lib/actions/bookmark";
 import { useRouter } from "next/navigation";
 import { EditBookmarkDialog } from "@/components/edit-bookmark-dialog";
@@ -19,6 +26,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { ShareDialog } from "@/components/share-dialog";
+import { MoveToFolderDialog } from "@/components/move-to-folder-dialog";
+import type { Folder } from "@/components/sidebar";
 
 type Tag = {
   id: string;
@@ -63,11 +72,6 @@ function domainToColor(domain: string): string {
   return `hsl(${h}, 40%, 85%)`;
 }
 
-function tagToColor(tagName: string): string {
-  const h = hashCode(tagName) % 360;
-  return `hsl(${h}, 55%, 50%)`;
-}
-
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   return date.toLocaleDateString("en-US", {
@@ -96,14 +100,17 @@ function formatRelativeTime(dateStr: string): string {
 export function BookmarkCard({
   bookmark,
   onDelete,
+  folders,
 }: {
   bookmark: BookmarkCardData;
   onDelete?: (id: string) => void;
+  folders?: Folder[];
 }) {
   const [isFavorite, setIsFavorite] = useState(bookmark.isFavorite);
   const [toggling, setToggling] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const router = useRouter();
@@ -184,13 +191,71 @@ export function BookmarkCard({
               {bookmark.title || bookmark.url}
             </h3>
           </a>
+          {/* Mobile overflow menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-stone-400 hover:text-stone-600 md:hidden"
+                aria-label="More actions"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="min-h-[44px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditOpen(true);
+                }}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="min-h-[44px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMoveOpen(true);
+                }}
+              >
+                <FolderInput className="mr-2 h-4 w-4" />
+                Move to Folder
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="min-h-[44px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShareOpen(true);
+                }}
+              >
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="min-h-[44px] text-red-600 focus:text-red-600"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDeleteDialog(true);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {/* Desktop hover-reveal buttons */}
           <button
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               setShareOpen(true);
             }}
-            className="shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-stone-600 group-hover:opacity-100"
+            className="hidden shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-stone-600 group-hover:opacity-100 md:inline-flex"
             aria-label="Share bookmark"
           >
             <Share2 className="h-4 w-4" />
@@ -201,7 +266,7 @@ export function BookmarkCard({
               e.stopPropagation();
               setEditOpen(true);
             }}
-            className="shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-stone-600 group-hover:opacity-100"
+            className="hidden shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-stone-600 group-hover:opacity-100 md:inline-flex"
             aria-label="Edit bookmark"
           >
             <Pencil className="h-4 w-4" />
@@ -212,7 +277,7 @@ export function BookmarkCard({
               e.stopPropagation();
               setShowDeleteDialog(true);
             }}
-            className="shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-red-500 group-hover:opacity-100"
+            className="hidden shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-red-500 group-hover:opacity-100 md:inline-flex"
             aria-label="Delete bookmark"
           >
             <Trash2 className="h-4 w-4" />
@@ -252,7 +317,7 @@ export function BookmarkCard({
           <button
             onClick={handleToggleFavorite}
             disabled={toggling}
-            className="shrink-0 p-0.5 text-stone-400 transition-colors hover:text-amber-500"
+            className="shrink-0 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:p-0.5 flex items-center justify-center text-stone-400 transition-colors hover:text-amber-500"
             aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
             <Star
@@ -309,13 +374,8 @@ export function BookmarkCard({
               <Badge
                 key={tag.id}
                 variant="secondary"
-                className="text-[10px] px-1.5 py-0"
-                style={{
-                  backgroundColor: `${tagToColor(tag.name)}20`,
-                  color: tagToColor(tag.name),
-                  borderColor: `${tagToColor(tag.name)}40`,
-                  borderWidth: "1px",
-                }}
+                className="text-xs px-1.5 py-0"
+                style={tagBadgeStyle(tag.name)}
               >
                 {tag.name}
               </Badge>
@@ -337,6 +397,15 @@ export function BookmarkCard({
         id={bookmark.id}
         name={bookmark.title || bookmark.url}
       />
+
+      {folders && (
+        <MoveToFolderDialog
+          bookmarkId={bookmark.id}
+          folders={folders}
+          open={moveOpen}
+          onOpenChange={setMoveOpen}
+        />
+      )}
     </div>
   );
 }

@@ -20,7 +20,7 @@ export default function Home() {
 
       {/* Hero */}
       <main className="max-w-5xl mx-auto px-6">
-        <section className="flex flex-col items-center text-center pt-24 pb-16">
+        <section className="flex flex-col items-center text-center pt-12 md:pt-24 pb-16">
           <h1 className="text-4xl font-bold tracking-tight text-stone-900 sm:text-5xl">
             Your bookmarks,
             <br />
@@ -54,7 +54,7 @@ export default function Home() {
         </section>
 
         {/* Features grid */}
-        <section className="grid gap-6 py-20 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="grid gap-6 py-10 md:py-20 sm:grid-cols-2 lg:grid-cols-3">
           <FeatureCard
             icon={<Sparkles className="size-5" />}
             title="AI Tag Suggestions"
