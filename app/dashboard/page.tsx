@@ -90,7 +90,9 @@ export default async function DashboardPage({
         </p>
       </div>
 
-      <QuickAddWithSuggestions />
+      <div className="sticky top-0 z-10 -mx-3 bg-stone-50 px-3 py-2 md:-mx-6 md:px-6">
+        <QuickAddWithSuggestions />
+      </div>
 
       <DashboardContent
         initialBookmarks={bookmarks}
