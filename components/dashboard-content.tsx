@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useTransition, useRef } from "react";
+import { Loader2 } from "lucide-react";
 import { SearchBar } from "@/components/search-bar";
 import { BookmarkListView } from "@/components/bookmark-list-view";
 import { TagFilterBar, type TagForFilter } from "@/components/tag-filter-bar";
@@ -28,7 +29,7 @@ export function DashboardContent({
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [filteredBookmarks, setFilteredBookmarks] = useState<BookmarkCardData[] | null>(null);
   const [filteredCursor, setFilteredCursor] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   const isInitialMount = useRef(true);
 
   const handleResults = useCallback(
@@ -122,7 +123,11 @@ export function DashboardContent({
         </p>
       )}
 
-      {isSearching ? (
+      {isPending ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-stone-400" />
+        </div>
+      ) : isSearching ? (
         <BookmarkListView
           key={`search-${searchQuery}-${selectedTagIds.join(",")}`}
           initialBookmarks={searchResults}
