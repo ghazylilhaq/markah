@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Star, ExternalLink, Pencil, Trash2, Share2, MoreVertical, FolderInput } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { tagBadgeStyle } from "@/lib/utils/tag-color";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,21 +36,6 @@ function getDomain(url: string): string {
   } catch {
     return url;
   }
-}
-
-function hashCode(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
-function tagToColor(tagName: string): string {
-  const h = hashCode(tagName) % 360;
-  return `hsl(${h}, 55%, 50%)`;
 }
 
 function formatDate(dateStr: string): string {
@@ -159,13 +145,8 @@ export function BookmarkListItem({
           <Badge
             key={tag.id}
             variant="secondary"
-            className="text-[10px] px-1.5 py-0"
-            style={{
-              backgroundColor: `${tagToColor(tag.name)}20`,
-              color: tagToColor(tag.name),
-              borderColor: `${tagToColor(tag.name)}40`,
-              borderWidth: "1px",
-            }}
+            className="text-xs px-1.5 py-0"
+            style={tagBadgeStyle(tag.name)}
           >
             {tag.name}
           </Badge>
