@@ -10,14 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Sidebar } from "@/components/sidebar";
-
-type Folder = {
-  id: string;
-  name: string;
-  parentId: string | null;
-  children: Folder[];
-};
+import { Sidebar, type Folder } from "@/components/sidebar";
 
 type User = {
   id: string;

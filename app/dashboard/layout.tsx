@@ -2,13 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/dashboard-shell";
-
-type Folder = {
-  id: string;
-  name: string;
-  parentId: string | null;
-  children: Folder[];
-};
+import type { Folder } from "@/components/sidebar";
 
 function buildFolderTree(
   folders: { id: string; name: string; parentId: string | null; position: number }[]

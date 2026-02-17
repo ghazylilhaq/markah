@@ -36,6 +36,9 @@
 - Parent-to-child `onDelete` callback pattern: parent filters state, child calls after server action succeeds — avoids full page reload.
 - LLM provider service at `lib/services/llm-provider.ts` — use `getLLMProvider()` factory, returns `null` if unconfigured.
 - `.env.example` is gitignored by `.env*` pattern — use `git add -f .env.example` to commit it.
+- Folder type exported from `components/sidebar.tsx` — import as `type Folder` from `@/components/sidebar`.
+- Folder server actions in `lib/actions/folder.ts` — createFolder, renameFolder, deleteFolder.
+- shadcn/ui DropdownMenu component installed and available for context menus.
 
 # Ralph Progress Log
 Started: Tue Feb 17 02:05:07 WIB 2026
@@ -286,4 +289,21 @@ Started: Tue Feb 17 02:05:07 WIB 2026
   - `useCallback` for stable function references passed to child components prevents unnecessary re-renders
   - Tag upsert + bookmark link is a two-step operation: first `prisma.tag.upsert` then check existing `bookmarkTag` before creating
   - The `hashCode` + HSL color generation for tags is duplicated in bookmark-card.tsx and tag-suggestions.tsx — consider extracting to shared utils
+---
+
+## 2026-02-17 - US-018
+- What was implemented: Folder CRUD in sidebar (create, rename, delete)
+- Files changed:
+  - `lib/actions/folder.ts` — New file: createFolder, renameFolder, deleteFolder server actions
+  - `components/sidebar.tsx` — Added '+' create button with inline input, three-dot DropdownMenu per folder with Rename/Delete, AlertDialog for delete confirmation, inline Input for rename
+  - `components/dashboard-shell.tsx` — Import Folder type from sidebar.tsx (removed duplicate type)
+  - `app/dashboard/layout.tsx` — Import Folder type from sidebar.tsx (removed duplicate type)
+  - `components/ui/dropdown-menu.tsx` — shadcn/ui DropdownMenu component (installed)
+  - `scripts/ralph/prd.json` — Marked US-018 as passes: true
+- **Learnings for future iterations:**
+  - Folder type was duplicated in sidebar.tsx, dashboard-shell.tsx, and layout.tsx — consolidated to export from sidebar.tsx
+  - Delete folder needs to collect all descendant folder IDs first to remove BookmarkFolder associations before cascade delete
+  - Prisma schema `onDelete: Cascade` on Folder self-relation handles child folder deletion automatically — only BookmarkFolder cleanup needed manually
+  - DropdownMenu trigger inside a Link needs `onClick: e.preventDefault()` to prevent navigation when clicking the menu button
+  - Inline rename/create pattern: show Input on action, commit on Enter/blur, cancel on Escape
 ---
