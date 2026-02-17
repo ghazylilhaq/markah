@@ -15,7 +15,8 @@ import {
   ChevronRight,
   FolderPlus,
 } from "lucide-react";
-import { useDroppable } from "@dnd-kit/core";
+import { useDroppable, useDraggable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ export type Folder = {
   id: string;
   name: string;
   parentId: string | null;
+  position: number;
   children: Folder[];
 };
 
@@ -153,26 +155,41 @@ export function Sidebar({ folders }: { folders: Folder[] }) {
         </div>
       )}
 
-      {folders.map((folder) => (
-        <FolderItem
-          key={folder.id}
-          folder={folder}
-          currentFolder={currentFolder}
-          depth={0}
-          isCreating={isCreating}
-          creatingParentId={creatingParentId}
-          newFolderName={newFolderName}
-          setNewFolderName={setNewFolderName}
-          createInputRef={createInputRef}
-          onCreateFolder={handleCreateFolder}
-          onCancelCreate={() => {
-            setIsCreating(false);
-            setNewFolderName("");
-            setCreatingParentId(null);
-          }}
-          onStartCreateSubfolder={startCreating}
-        />
+      {folders.map((folder, index) => (
+        <div key={folder.id}>
+          <FolderDropGap
+            id={`folder-gap-root-${index}`}
+            parentId={null}
+            index={index}
+            depth={0}
+          />
+          <FolderItem
+            folder={folder}
+            currentFolder={currentFolder}
+            depth={0}
+            isCreating={isCreating}
+            creatingParentId={creatingParentId}
+            newFolderName={newFolderName}
+            setNewFolderName={setNewFolderName}
+            createInputRef={createInputRef}
+            onCreateFolder={handleCreateFolder}
+            onCancelCreate={() => {
+              setIsCreating(false);
+              setNewFolderName("");
+              setCreatingParentId(null);
+            }}
+            onStartCreateSubfolder={startCreating}
+          />
+        </div>
       ))}
+      {folders.length > 0 && (
+        <FolderDropGap
+          id={`folder-gap-root-${folders.length}`}
+          parentId={null}
+          index={folders.length}
+          depth={0}
+        />
+      )}
 
       {folders.length === 0 && !isCreating && (
         <p className="px-3 py-2 text-xs text-stone-400">No folders yet</p>
@@ -182,6 +199,38 @@ export function Sidebar({ folders }: { folders: Folder[] }) {
 }
 
 const MAX_FOLDER_DEPTH = 3; // root(1) > child(2) > grandchild(3)
+
+function FolderDropGap({
+  id,
+  parentId,
+  index,
+  depth,
+}: {
+  id: string;
+  parentId: string | null;
+  index: number;
+  depth: number;
+}) {
+  const { isOver, setNodeRef } = useDroppable({
+    id,
+    data: {
+      type: "folder-gap",
+      parentId,
+      index,
+    },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "h-1 rounded-full transition-colors mx-2",
+        isOver ? "bg-blue-400" : "bg-transparent"
+      )}
+      style={{ marginLeft: `${8 + depth * 16}px` }}
+    />
+  );
+}
 
 function FolderItem({
   folder,
@@ -220,8 +269,31 @@ function FolderItem({
 
   const { isOver, setNodeRef: setDropRef } = useDroppable({
     id: `folder-${folder.id}`,
-    data: { type: "folder", folderId: folder.id, folderName: folder.name },
+    data: { type: "folder", folderId: folder.id, folderName: folder.name, depth },
   });
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    transform,
+    isDragging,
+  } = useDraggable({
+    id: `drag-folder-${folder.id}`,
+    data: {
+      type: "folder-drag",
+      folder: { id: folder.id, name: folder.name, parentId: folder.parentId },
+      depth,
+    },
+  });
+
+  const dragStyle = transform
+    ? {
+        transform: CSS.Translate.toString(transform),
+        opacity: isDragging ? 0.5 : undefined,
+        zIndex: isDragging ? 50 : undefined,
+      }
+    : undefined;
 
   useEffect(() => {
     if (isRenaming && renameInputRef.current) {
@@ -300,7 +372,13 @@ function FolderItem({
   return (
     <>
       <div
-        ref={setDropRef}
+        ref={(node) => {
+          setDropRef(node);
+          setDragRef(node);
+        }}
+        style={dragStyle}
+        {...listeners}
+        {...attributes}
         className={cn(
           "group flex items-center justify-between rounded-lg pr-1 transition-colors",
           isOver
@@ -421,22 +499,37 @@ function FolderItem({
               />
             </div>
           )}
-          {folder.children?.map((child) => (
-            <FolderItem
-              key={child.id}
-              folder={child}
-              currentFolder={currentFolder}
-              depth={depth + 1}
-              isCreating={isCreating}
-              creatingParentId={creatingParentId}
-              newFolderName={newFolderName}
-              setNewFolderName={setNewFolderName}
-              createInputRef={createInputRef}
-              onCreateFolder={onCreateFolder}
-              onCancelCreate={onCancelCreate}
-              onStartCreateSubfolder={onStartCreateSubfolder}
-            />
+          {folder.children?.map((child, index) => (
+            <div key={child.id}>
+              <FolderDropGap
+                id={`folder-gap-${folder.id}-${index}`}
+                parentId={folder.id}
+                index={index}
+                depth={depth + 1}
+              />
+              <FolderItem
+                folder={child}
+                currentFolder={currentFolder}
+                depth={depth + 1}
+                isCreating={isCreating}
+                creatingParentId={creatingParentId}
+                newFolderName={newFolderName}
+                setNewFolderName={setNewFolderName}
+                createInputRef={createInputRef}
+                onCreateFolder={onCreateFolder}
+                onCancelCreate={onCancelCreate}
+                onStartCreateSubfolder={onStartCreateSubfolder}
+              />
+            </div>
           ))}
+          {folder.children.length > 0 && (
+            <FolderDropGap
+              id={`folder-gap-${folder.id}-${folder.children.length}`}
+              parentId={folder.id}
+              index={folder.children.length}
+              depth={depth + 1}
+            />
+          )}
         </>
       )}
     </>

@@ -416,8 +416,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 23,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Folders are both draggable (useDraggable) and droppable (useDroppable) in sidebar. FolderDropGap components between folders for reorder targeting. DashboardShell handleDragEnd handles folder-on-folder (nesting via moveFolderToParent) and folder-on-gap (reordering via reorderFolders). Server-side depth enforcement: moveFolderToParent checks subtree depth + parent depth <= 3. Folder type extended with position field. DragOverlay shows folder name preview during drag."
     },
     {
       "id": "US-024",

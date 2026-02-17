@@ -47,6 +47,10 @@
 - Next.js 16 `searchParams` is a Promise — must `await searchParams` in server components.
 - Prisma AND filter for "bookmark must have ALL tags": `AND: tagIds.map(tagId => ({ tags: { some: { tagId } } }))`.
 - DashboardContent manages combined filters (text search + tag IDs + folder). Tag filters available via `getUserTags()` fetched in dashboard page.
+- @dnd-kit/core v6: DndContext wraps DashboardShell (sidebar + content). useDraggable in wrapper component, useDroppable in FolderItem. PointerSensor with distance: 8 to avoid click interference.
+- Combining useDraggable + useDroppable on same element: `ref={(node) => { setDropRef(node); setDragRef(node); }}` with spread of both listeners/attributes.
+- Folder reordering uses FolderDropGap droppable components between items (type: "folder-gap" with parentId + index data).
+- moveFolderToParent and reorderFolders server actions in lib/actions/folder.ts for folder drag-and-drop.
 
 # Ralph Progress Log
 Started: Tue Feb 17 02:05:07 WIB 2026
@@ -369,4 +373,39 @@ Started: Tue Feb 17 02:05:07 WIB 2026
   - useRef isInitialMount pattern avoids running useEffect on first render when watching state changes
   - DashboardContent now has three states: searching (text query active), tag-filtered (tags selected, no query), default (no filters)
   - Tag filter changes trigger re-fetch in useEffect — search results updated for search+tags combo, getBookmarks for tags-only
+---
+
+## 2026-02-17 - US-022
+- What was implemented: Drag-and-drop bookmarks into folders using @dnd-kit/core
+- Files changed:
+  - `components/dnd-bookmark-wrapper.tsx` — New DraggableBookmarkCard wrapper using useDraggable
+  - `components/dashboard-shell.tsx` — Added DndContext with PointerSensor, DragOverlay, handleDragEnd calling addBookmarkToFolder
+  - `components/sidebar.tsx` — Added useDroppable to FolderItem with blue highlight on drag over
+  - `components/bookmark-list-view.tsx` — Wrapped BookmarkCard and BookmarkListItem in DraggableBookmarkCard
+  - `lib/actions/bookmark.ts` — Added addBookmarkToFolder server action (creates BookmarkFolder association, checks for duplicates)
+  - `package.json` / `bun.lock` — Added @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities
+  - `scripts/ralph/prd.json` — Marked US-022 as passes: true
+- **Learnings for future iterations:**
+  - @dnd-kit/core v6 API: DndContext wraps everything, useDraggable/useDroppable in individual components, DragOverlay for cursor preview
+  - PointerSensor with `activationConstraint: { distance: 8 }` prevents interfering with clicks on bookmark cards
+  - DndContext must wrap both sidebar (drop targets) and main content (draggable items) — DashboardShell is the right place
+  - useDraggable provides `data` prop to pass arbitrary context (bookmark data); useDroppable similarly passes folder data
+  - DragOverlay with `dropAnimation={null}` provides instant feedback without animation lag
+  - Wrapper component pattern works well: DraggableBookmarkCard wraps children without modifying BookmarkCard/BookmarkListItem internals
+---
+
+## 2026-02-17 - US-023
+- What was implemented: Drag-and-drop folder reordering and nesting in sidebar
+- Files changed:
+  - `components/sidebar.tsx` — Made FolderItem both draggable (useDraggable) and droppable (useDroppable). Added FolderDropGap components between folders as reorder drop targets. Added `position` to Folder type. Combined drag and drop refs on same element.
+  - `components/dashboard-shell.tsx` — Extended handleDragEnd to handle folder-on-folder (nesting) and folder-on-gap (reordering). Added activeFolderDrag state for folder DragOverlay preview. Added getSiblingIds helper to extract sibling order from folder tree. Imported moveFolderToParent and reorderFolders.
+  - `lib/actions/folder.ts` — Added moveFolderToParent server action (validates: not self, not descendant, depth constraint with subtree depth check). Added reorderFolders server action (batch position updates in transaction). Added getSubtreeDepth helper.
+  - `app/dashboard/layout.tsx` — Added `position` field to buildFolderTree output.
+  - `scripts/ralph/prd.json` — Marked US-023 as passes: true.
+- **Learnings for future iterations:**
+  - Combining useDraggable + useDroppable on same element: use combined ref callback `(node) => { setDropRef(node); setDragRef(node); }`
+  - For reordering, use gap droppables between items rather than complex collision detection — simpler and more predictable
+  - Depth enforcement for folder moves must check BOTH the target parent depth AND the moved folder's subtree depth to prevent deeply nested trees from exceeding the limit
+  - `collectDescendantIds` is also useful for preventing circular nesting (can't move a folder into its own descendant)
+  - Reorder within same parent: remove from current position, adjust insert index if moving downward (targetIndex > currentIndex means subtract 1)
 ---

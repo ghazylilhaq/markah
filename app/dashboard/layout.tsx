@@ -11,7 +11,7 @@ function buildFolderTree(
   const roots: Folder[] = [];
 
   for (const f of folders) {
-    map.set(f.id, { id: f.id, name: f.name, parentId: f.parentId, children: [] });
+    map.set(f.id, { id: f.id, name: f.name, parentId: f.parentId, position: f.position, children: [] });
   }
 
   for (const f of folders) {

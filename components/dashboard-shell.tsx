@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { signOut } from "next-auth/react";
-import { Menu, LogOut, Bookmark } from "lucide-react";
+import { Menu, LogOut, Bookmark, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -21,6 +21,10 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { addBookmarkToFolder } from "@/lib/actions/bookmark";
+import {
+  moveFolderToParent,
+  reorderFolders,
+} from "@/lib/actions/folder";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { BookmarkCardData } from "@/components/bookmark-card";
@@ -42,6 +46,11 @@ export function DashboardShell({
 }) {
   const [open, setOpen] = useState(false);
   const [activeDrag, setActiveDrag] = useState<BookmarkCardData | null>(null);
+  const [activeFolderDrag, setActiveFolderDrag] = useState<{
+    id: string;
+    name: string;
+    parentId: string | null;
+  } | null>(null);
   const router = useRouter();
 
   const sensors = useSensors(
@@ -54,26 +63,58 @@ export function DashboardShell({
     const { active } = event;
     if (active.data.current?.type === "bookmark") {
       setActiveDrag(active.data.current.bookmark as BookmarkCardData);
+    } else if (active.data.current?.type === "folder-drag") {
+      setActiveFolderDrag(
+        active.data.current.folder as {
+          id: string;
+          name: string;
+          parentId: string | null;
+        }
+      );
     }
   }, []);
 
+  // Collect sibling folder IDs at a given parent level from the folder tree
+  const getSiblingIds = useCallback(
+    (parentId: string | null): string[] => {
+      if (parentId === null) {
+        return folders.map((f) => f.id);
+      }
+      function findChildren(nodes: Folder[]): string[] | null {
+        for (const node of nodes) {
+          if (node.id === parentId) {
+            return node.children.map((c) => c.id);
+          }
+          const found = findChildren(node.children);
+          if (found) return found;
+        }
+        return null;
+      }
+      return findChildren(folders) ?? [];
+    },
+    [folders]
+  );
+
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
+      const wasFolderDrag = !!activeFolderDrag;
       setActiveDrag(null);
+      setActiveFolderDrag(null);
       const { active, over } = event;
 
       if (!over) return;
 
-      const bookmarkData = active.data.current;
-      const folderData = over.data.current;
+      const activeData = active.data.current;
+      const overData = over.data.current;
 
+      // Bookmark dropped on folder
       if (
-        bookmarkData?.type === "bookmark" &&
-        folderData?.type === "folder"
+        activeData?.type === "bookmark" &&
+        overData?.type === "folder"
       ) {
-        const bookmarkId = (bookmarkData.bookmark as BookmarkCardData).id;
-        const folderId = folderData.folderId as string;
-        const folderName = folderData.folderName as string;
+        const bookmarkId = (activeData.bookmark as BookmarkCardData).id;
+        const folderId = overData.folderId as string;
+        const folderName = overData.folderName as string;
 
         try {
           const result = await addBookmarkToFolder(bookmarkId, folderId);
@@ -86,9 +127,81 @@ export function DashboardShell({
         } catch {
           toast.error("Failed to move bookmark to folder");
         }
+        return;
+      }
+
+      // Folder dropped on another folder (nesting)
+      if (wasFolderDrag && overData?.type === "folder") {
+        const draggedFolderId = (
+          activeData?.folder as { id: string }
+        ).id;
+        const targetFolderId = overData.folderId as string;
+        const targetFolderName = overData.folderName as string;
+
+        if (draggedFolderId === targetFolderId) return;
+
+        try {
+          await moveFolderToParent(draggedFolderId, targetFolderId);
+          toast.success(`Moved into "${targetFolderName}"`);
+          router.refresh();
+        } catch (e) {
+          const msg =
+            e instanceof Error ? e.message : "Failed to move folder";
+          toast.error(msg);
+        }
+        return;
+      }
+
+      // Folder dropped on a gap (reordering)
+      if (wasFolderDrag && overData?.type === "folder-gap") {
+        const draggedFolder = activeData?.folder as {
+          id: string;
+          parentId: string | null;
+        };
+        const targetParentId = overData.parentId as string | null;
+        const targetIndex = overData.index as number;
+
+        // If parent changes, it's a move + reorder
+        if (draggedFolder.parentId !== targetParentId) {
+          // Server enforces depth constraint
+          try {
+            await moveFolderToParent(draggedFolder.id, targetParentId);
+            // Now reorder at the new parent
+            const siblings = getSiblingIds(targetParentId).filter(
+              (id) => id !== draggedFolder.id
+            );
+            siblings.splice(targetIndex, 0, draggedFolder.id);
+            await reorderFolders(siblings);
+            router.refresh();
+          } catch (e) {
+            const msg =
+              e instanceof Error ? e.message : "Failed to move folder";
+            toast.error(msg);
+            router.refresh();
+          }
+        } else {
+          // Same parent, just reorder
+          const siblings = getSiblingIds(targetParentId);
+          const currentIndex = siblings.indexOf(draggedFolder.id);
+          if (currentIndex === -1) return;
+
+          // Remove from current position and insert at target
+          const newOrder = siblings.filter((id) => id !== draggedFolder.id);
+          const insertAt =
+            targetIndex > currentIndex ? targetIndex - 1 : targetIndex;
+          newOrder.splice(insertAt, 0, draggedFolder.id);
+
+          try {
+            await reorderFolders(newOrder);
+            router.refresh();
+          } catch {
+            toast.error("Failed to reorder folders");
+          }
+        }
+        return;
       }
     },
-    [router]
+    [router, activeFolderDrag, getSiblingIds]
   );
 
   return (
@@ -171,6 +284,14 @@ export function DashboardShell({
             </p>
             <p className="truncate text-xs text-stone-500">
               {activeDrag.url}
+            </p>
+          </div>
+        )}
+        {activeFolderDrag && (
+          <div className="w-48 rounded-lg border border-stone-300 bg-white p-2 shadow-lg opacity-90 flex items-center gap-2">
+            <FolderOpen className="h-4 w-4 text-stone-600 shrink-0" />
+            <p className="truncate text-sm font-medium text-stone-900">
+              {activeFolderDrag.name}
             </p>
           </div>
         )}

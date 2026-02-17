@@ -105,3 +105,94 @@ async function collectDescendantIds(
   }
   return ids;
 }
+
+/**
+ * Get the depth of a folder's subtree (how deep its deepest descendant is).
+ * A leaf folder has subtree depth 0. A folder with one level of children has subtree depth 1.
+ */
+async function getSubtreeDepth(
+  folderId: string,
+  userId: string
+): Promise<number> {
+  const children = await prisma.folder.findMany({
+    where: { parentId: folderId, userId },
+    select: { id: true },
+  });
+
+  if (children.length === 0) return 0;
+
+  let maxChildDepth = 0;
+  for (const child of children) {
+    const childDepth = await getSubtreeDepth(child.id, userId);
+    maxChildDepth = Math.max(maxChildDepth, childDepth);
+  }
+  return 1 + maxChildDepth;
+}
+
+export async function moveFolderToParent(
+  folderId: string,
+  newParentId: string | null
+) {
+  const user = await requireUser();
+
+  const folder = await prisma.folder.findFirst({
+    where: { id: folderId, userId: user.id },
+  });
+  if (!folder) throw new Error("Folder not found");
+
+  // Cannot move a folder into itself
+  if (newParentId === folderId) {
+    throw new Error("Cannot move a folder into itself");
+  }
+
+  // Cannot move a folder into one of its descendants
+  if (newParentId) {
+    const descendantIds = await collectDescendantIds(folderId, user.id);
+    if (descendantIds.includes(newParentId)) {
+      throw new Error("Cannot move a folder into its own descendant");
+    }
+  }
+
+  // Enforce max nesting depth: parent depth + subtree depth of moved folder + 1 <= MAX_FOLDER_DEPTH
+  if (newParentId) {
+    const parentDepth = await getFolderDepth(newParentId, user.id);
+    const subtreeDepth = await getSubtreeDepth(folderId, user.id);
+    if (parentDepth + subtreeDepth + 1 > MAX_FOLDER_DEPTH) {
+      throw new Error("Maximum folder nesting depth (3 levels) would be exceeded");
+    }
+  } else {
+    // Moving to root - just check subtree depth
+    const subtreeDepth = await getSubtreeDepth(folderId, user.id);
+    if (subtreeDepth + 1 > MAX_FOLDER_DEPTH) {
+      throw new Error("Maximum folder nesting depth (3 levels) would be exceeded");
+    }
+  }
+
+  // Get max position among siblings at the new parent level
+  const maxPos = await prisma.folder.aggregate({
+    where: { userId: user.id, parentId: newParentId },
+    _max: { position: true },
+  });
+
+  await prisma.folder.update({
+    where: { id: folderId },
+    data: {
+      parentId: newParentId,
+      position: (maxPos._max.position ?? 0) + 1,
+    },
+  });
+}
+
+export async function reorderFolders(folderIds: string[]) {
+  await requireUser();
+
+  // Update positions for all folders in the new order
+  await prisma.$transaction(
+    folderIds.map((id, index) =>
+      prisma.folder.update({
+        where: { id },
+        data: { position: index },
+      })
+    )
+  );
+}
