@@ -28,7 +28,6 @@ APPEND to progress.txt (never replace, always append):
   - Useful context (e.g., "the evaluation panel is in component X")
 ---
 ```
-
 The learnings section is critical - it helps future iterations avoid repeating mistakes and understand the codebase better.
 
 ## Consolidate Patterns
@@ -102,3 +101,8 @@ If there are still stories with `passes: false`, end your response normally (ano
 - Commit frequently
 - Keep CI green
 - Read the Codebase Patterns section in progress.txt before starting
+
+
+**PRD and progress paths:** 
+`prd.json` and `progress.txt` live in `scripts/ralph/` (this directory), not in the project root. Use `scripts/ralph/prd.json` and `scripts/ralph/progress.txt` when reading or updating them.
+
