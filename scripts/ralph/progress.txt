@@ -1,0 +1,477 @@
+## Codebase Patterns
+- Use Prisma v6 (not v7) — v7 requires a `prisma.config.ts` and removed `url` from schema datasource
+- PostgreSQL runs in Docker container `pomo-city-postgres-1` with user `pomo`, password `pomo` on port 5432
+- Prisma client singleton is at `lib/prisma.ts` — import from `@/lib/prisma`
+- Project uses bun as package manager, Next.js 16, shadcn/ui, Tailwind v4
+- Path alias `@/*` maps to project root
+- Prisma v6 used (not v7). DB connects to local PostgreSQL with user pomo/pomo. Prisma v6 warns about `package.json#prisma` config being deprecated in v7.
+- Seed script uses `npx tsx prisma/seed.ts` — tsx is auto-installed by npx.
+- NextAuth.js v5 (beta.30) with JWT strategy and credentials provider — no Prisma adapter (custom User model).
+- Auth config lives in `lib/auth.ts`, exports `{ handlers, signIn, signOut, auth }`.
+- Session helper functions in `lib/session.ts` — use `getCurrentUser()` or `requireUser()` for auth checks.
+- Server actions go in `lib/actions/` directory.
+- Type augmentations for next-auth in `types/next-auth.d.ts`.
+- Path alias: `@/*` maps to project root.
+- shadcn/ui with "new-york" style, stone base color, lucide icons.
+- Tailwind CSS v4 with PostCSS plugin.
+- Auth pages use `(auth)` route group with centered layout in `app/(auth)/layout.tsx`.
+- `next lint` command doesn't work (Next.js 16 changed CLI); use `npx eslint` directly instead.
+- Auth middleware at `middleware.ts` uses `auth()` from `lib/auth.ts` — public routes: `/`, `/login`, `/register`, `/share/*`.
+- Services go in `lib/services/` directory — use `"use server"` directive for server-side-only code.
+- Dashboard layout uses server component (`app/dashboard/layout.tsx`) to fetch data, passes to client `DashboardShell` component.
+- Sidebar is a client component (`components/sidebar.tsx`) that reads `?folder=` query param for active state.
+- Mobile sidebar uses shadcn/ui Sheet component (left side) with hamburger menu trigger.
+- Folder tree built from flat Prisma query via `buildFolderTree()` helper in dashboard layout.
+- Sonner (toast) installed as shadcn/ui component; Toaster added to root `app/layout.tsx`. Use `toast()` from `sonner` package.
+- Bookmark server actions in `lib/actions/bookmark.ts` — use `requireUser()` for auth.
+- Use `<img>` (not `next/image`) for external bookmark images — arbitrary domains can't be preconfigured.
+- Pass dates as ISO strings from server to client components (Date objects can't cross the boundary).
+- Prisma join table queries: `include: { tags: { include: { tag: true } } }`, then flatten with `.map(bt => bt.tag)`.
+- For localStorage-backed state, use `useSyncExternalStore` (not useState + useEffect) to avoid ESLint `set-state-in-effect` error.
+- Cursor-based pagination pattern: `take: limit + 1`, check `length > limit` for hasMore, `slice(0, limit)` for results.
+- Use `prisma.$transaction(async (tx) => { ... })` for multi-step atomic operations (e.g., update bookmark + replace tags + replace folders).
+- Tag upsert pattern: `tx.tag.upsert({ where: { name_userId: { name, userId } }, update: {}, create: { name, userId } })` to get-or-create tags.
+- shadcn/ui Dialog + Checkbox + AlertDialog components installed and available.
+- For destructive actions with confirmation, use shadcn/ui AlertDialog (not Dialog).
+- Parent-to-child `onDelete` callback pattern: parent filters state, child calls after server action succeeds — avoids full page reload.
+- LLM provider service at `lib/services/llm-provider.ts` — use `getLLMProvider()` factory, returns `null` if unconfigured.
+- `.env.example` is gitignored by `.env*` pattern — use `git add -f .env.example` to commit it.
+- Folder type exported from `components/sidebar.tsx` — import as `type Folder` from `@/components/sidebar`.
+- Folder server actions in `lib/actions/folder.ts` — createFolder, renameFolder, deleteFolder.
+- shadcn/ui DropdownMenu component installed and available for context menus.
+- Folder filtering in `getBookmarks`: pass `filter` param ('all' | 'favorites' | 'unsorted' | folder ID). Uses Prisma `folders: { none: {} }` for unsorted, `folders: { some: { folderId } }` for specific folder.
+- Avoid `setState` inside `useEffect` — ESLint `react-hooks/set-state-in-effect` rule. Use event handlers or `useSyncExternalStore` instead.
+- Raw SQL migrations go in `prisma/migrations/YYYYMMDD_description/migration.sql` — applied via `npx prisma migrate deploy`.
+- Use `Prisma.sql` tagged template + `$queryRaw<Type[]>` for type-safe raw PostgreSQL queries (tsvector, aggregations, etc.).
+- Server-side depth enforcement for folder nesting: walk parentId chain to count depth before creating subfolder.
+- Next.js 16 `searchParams` is a Promise — must `await searchParams` in server components.
+- Prisma AND filter for "bookmark must have ALL tags": `AND: tagIds.map(tagId => ({ tags: { some: { tagId } } }))`.
+- DashboardContent manages combined filters (text search + tag IDs + folder). Tag filters available via `getUserTags()` fetched in dashboard page.
+- @dnd-kit/core v6: DndContext wraps DashboardShell (sidebar + content). useDraggable in wrapper component, useDroppable in FolderItem. PointerSensor with distance: 8 to avoid click interference.
+- Combining useDraggable + useDroppable on same element: `ref={(node) => { setDropRef(node); setDragRef(node); }}` with spread of both listeners/attributes.
+- Folder reordering uses FolderDropGap droppable components between items (type: "folder-gap" with parentId + index data).
+- ShareDialog component at components/share-dialog.tsx — reusable for bookmarks and folders via `type` prop. Uses shadcn/ui Switch.
+- Share server actions: toggleBookmarkShare/getBookmarkShareInfo in bookmark.ts, toggleFolderShare/getFolderShareInfo in folder.ts.
+- Share URL format: /share/[shareId] — shareId generated via crypto.randomUUID().slice(0,12), preserved across public/private toggles.
+- moveFolderToParent and reorderFolders server actions in lib/actions/folder.ts for folder drag-and-drop.
+- Next.js standalone output enabled (`output: "standalone"` in next.config.ts) — required for Docker deployment.
+- Docker: multi-stage build with bun for deps/build, node:20-alpine for runtime. Entrypoint runs `prisma migrate deploy` before `node server.js`.
+
+# Ralph Progress Log
+Started: Tue Feb 17 02:05:07 WIB 2026
+---
+
+## 2026-02-17 - US-001
+- Implemented Prisma schema with all 6 models: User, Bookmark, Folder, Tag, BookmarkTag, BookmarkFolder
+- All models include required fields per acceptance criteria (isFavorite, isPublic, shareId, visitCount, etc.)
+- Self-referential Folder relation for nested folders (parentId)
+- Unique constraints on User.email and Tag [name, userId]
+- Created Prisma client singleton at lib/prisma.ts
+- Migration ran successfully against PostgreSQL
+- Files changed: package.json, bun.lock, prisma/schema.prisma, prisma/migrations/*, lib/prisma.ts
+- **Learnings for future iterations:**
+  - Prisma v7 removed `url` from datasource block — use v6 to avoid needing prisma.config.ts
+  - Local PostgreSQL is in Docker (pomo-city-postgres-1), user=pomo, pass=pomo — needed to create markah DB manually
+  - .env needs DATABASE_URL with pomo credentials, not default postgres/postgres
+---
+
+## 2026-02-17 - US-002
+- What was implemented: NextAuth.js v5 credentials authentication setup
+- Files changed:
+  - `lib/auth.ts` — NextAuth config with credentials provider, JWT callbacks
+  - `lib/session.ts` — getCurrentUser() and requireUser() helper functions
+  - `lib/actions/auth.ts` — registerUser() server action with bcrypt hashing
+  - `app/api/auth/[...nextauth]/route.ts` — API route handler
+  - `types/next-auth.d.ts` — Session type augmentation to include user.id
+  - `package.json` — Added next-auth, bcryptjs, @types/bcryptjs
+  - `.env` — Added NEXTAUTH_SECRET
+- **Learnings for future iterations:**
+  - NextAuth v5 doesn't need Prisma adapter when using custom User model without Account/Session tables
+  - Credentials provider uses JWT strategy (not database sessions)
+  - The `authorize` callback in credentials provider must return `null` for invalid credentials (not throw)
+  - Session callback chain: user → jwt callback (adds id to token) → session callback (adds id to session.user)
+---
+
+## 2026-02-17 - US-003
+- What was implemented: Registration page UI at /register
+- Files changed:
+  - `app/(auth)/layout.tsx` — Shared auth layout with centered card design
+  - `app/(auth)/register/page.tsx` — Registration form with email/password, validation, error handling
+  - `components/ui/button.tsx` — shadcn/ui Button component
+  - `components/ui/input.tsx` — shadcn/ui Input component
+  - `components/ui/label.tsx` — shadcn/ui Label component
+  - `components/ui/card.tsx` — shadcn/ui Card component
+- **Learnings for future iterations:**
+  - shadcn/ui components installed via `npx shadcn@latest add <component> --yes`
+  - Auth pages use (auth) route group for shared centered layout
+  - `next lint` doesn't work in Next.js 16; use `npx eslint` directly
+  - Registration uses existing `registerUser` server action from `lib/actions/auth.ts`
+---
+
+## 2026-02-17 - US-004
+- What was implemented: Login page UI at /login
+- Files changed:
+  - `app/(auth)/login/page.tsx` — Login form with email/password, NextAuth signIn, error handling
+- **Learnings for future iterations:**
+  - Use `signIn("credentials", { ..., redirect: false })` from `next-auth/react` for client-side login with error handling
+  - `signIn` returns `{ error: string | undefined }` — check `result?.error` to show error messages
+  - Login page reuses same (auth) layout and shadcn/ui Card pattern as registration
+  - `autoComplete="current-password"` for login vs `autoComplete="new-password"` for registration
+---
+
+## 2026-02-17 - US-005
+- What was implemented: Auth middleware and protected routes
+- Files changed:
+  - `middleware.ts` — NextAuth v5 auth() middleware with route protection logic
+- **Learnings for future iterations:**
+  - NextAuth v5 exports `auth` from config that can wrap middleware: `export default auth((req) => { ... })`
+  - `req.auth` is the session object in the middleware callback — truthy when logged in
+  - Matcher `["/((?!api|_next/static|_next/image|favicon.ico).*)"]` excludes API routes and static assets
+  - Public routes: `/`, `/login`, `/register`, `/share/*`
+  - Auth routes (`/login`, `/register`) redirect to `/dashboard` when already authenticated
+---
+
+## 2026-02-17 - US-006
+- What was implemented: Landing page at / with hero section, features grid, and placeholder illustration area
+- Files changed:
+  - `app/page.tsx` — Complete rewrite: hero section with app name, description, Get Started CTA, Sign In link, placeholder illustration, 6 feature cards, footer
+  - `app/layout.tsx` — Updated metadata title and description for Markah
+- **Learnings for future iterations:**
+  - Landing page uses lucide-react icons (Bookmark, FolderOpen, Search, Share2, Sparkles, Tag) — already available in project
+  - stone color palette consistent with auth pages (bg-stone-50, text-stone-900, etc.)
+  - FeatureCard is a local component in page.tsx — no need for separate file for single-use components
+---
+
+## 2026-02-17 - US-007
+- What was implemented: Prisma seed script with test data
+- Files changed:
+  - `prisma/seed.ts` — Seed script creating test user, 12 bookmarks, 8 tags, 3 folders with associations
+  - `package.json` — Added `prisma.seed` config pointing to `npx tsx prisma/seed.ts`
+- **Learnings for future iterations:**
+  - Seed idempotency: upsert for user, then delete-recreate for all child data (tags, folders, bookmarks, associations)
+  - `prisma.seed` in package.json is deprecated in Prisma v7 — will need prisma.config.ts migration eventually
+  - tsx is not a project dependency but npx auto-installs it; consider adding to devDependencies if seed runs in CI
+  - Test user credentials: test@markah.com / password123
+---
+
+## 2026-02-17 - US-008
+- What was implemented: Link preview fetching service at lib/services/link-preview.ts
+- Files changed:
+  - `lib/services/link-preview.ts` — Server-side service that fetches a URL and extracts OG/meta tag data (title, description, image, favicon)
+- **Learnings for future iterations:**
+  - No external HTML parser needed — regex works fine for extracting meta tags from HTML head
+  - `"use server"` directive used to keep the service server-side only
+  - AbortController with setTimeout provides clean 10s fetch timeout
+  - Meta tags can have property/name and content in either order — regex must handle both
+  - Relative URLs in og:image and favicon href need resolving against the base URL
+  - Graceful fallback: hostname extracted from URL used as title when fetch fails entirely
+---
+
+## 2026-02-17 - US-009
+- What was implemented: Dashboard layout with fixed sidebar and responsive mobile menu
+- Files changed:
+  - `app/dashboard/layout.tsx` — Server component: fetches user + folders, builds folder tree, passes to DashboardShell
+  - `app/dashboard/page.tsx` — Placeholder dashboard page
+  - `components/dashboard-shell.tsx` — Client component: sidebar (desktop), Sheet sidebar (mobile), header with user email + logout
+  - `components/sidebar.tsx` — Client component: virtual folders (All, Favorites, Unsorted) + user folder tree with nesting
+  - `components/ui/sheet.tsx` — shadcn/ui Sheet component (installed)
+- **Learnings for future iterations:**
+  - Dashboard uses server→client component split: layout.tsx (server) fetches data, DashboardShell (client) handles interactivity
+  - Sidebar active state based on `?folder=` search param, not pathname
+  - Folder tree built from flat DB query using parentId→children mapping
+  - Sheet component from shadcn/ui uses Radix Dialog internally; must include SheetTitle for accessibility
+  - signOut from next-auth/react with `{ redirectTo: "/" }` for post-logout redirect
+---
+
+## 2026-02-17 - US-010
+- What was implemented: Quick-add bookmark URL bar at top of dashboard
+- Files changed:
+  - `lib/actions/bookmark.ts` — Server action: addBookmark creates bookmark, checks duplicates, async metadata fetch
+  - `components/quick-add-bar.tsx` — Client component: URL input with loading state, URL validation/normalization, toast on duplicate
+  - `components/ui/sonner.tsx` — Sonner toast component (shadcn/ui)
+  - `app/layout.tsx` — Added Toaster to root layout
+  - `app/dashboard/page.tsx` — Integrated QuickAddBar component
+  - `prd.json` — Marked US-010 as passes: true
+- **Learnings for future iterations:**
+  - Sonner toast: import `toast` from `sonner` package, `Toaster` component from `components/ui/sonner.tsx`
+  - Server actions can fire-and-forget async operations (metadata fetch) by calling `.catch()` without awaiting
+  - URL normalization: prepend `https://` if no protocol, validate with `new URL()` constructor
+  - `router.refresh()` from `next/navigation` triggers server component re-render to show updated data
+---
+
+## 2026-02-17 - US-011
+- What was implemented: BookmarkCard component displaying thumbnail/color card, title, description snippet, domain, tags as colored badges, date saved, and star/favorite toggle
+- Files changed:
+  - `components/bookmark-card.tsx` — Client component: BookmarkCard with thumbnail/color card, tag badges, favorite toggle with optimistic UI
+  - `components/ui/badge.tsx` — shadcn/ui Badge component (installed)
+  - `lib/actions/bookmark.ts` — Added `toggleFavorite` server action
+  - `app/dashboard/page.tsx` — Converted to server component, fetches bookmarks with tags, renders in responsive grid
+- **Learnings for future iterations:**
+  - Use `<img>` (not `next/image`) for external bookmark images/favicons — arbitrary domains can't be preconfigured in next.config
+  - Deterministic color from string: `hashCode(str) % 360` for HSL hue — works well for both domain backgrounds and tag badge colors
+  - BookmarkCardData type uses `string` for dates (ISO format) since Date objects can't be passed as props from server to client components
+  - Prisma `include: { tags: { include: { tag: true } } }` fetches through join table — map `b.tags.map(bt => bt.tag)` to flatten
+  - Optimistic UI for favorite toggle: update local state immediately, revert on error, call `router.refresh()` after server action
+---
+
+## 2026-02-17 - US-012
+- What was implemented: Bookmark list view with grid/list toggle, cursor-based pagination
+- Files changed:
+  - `components/bookmark-list-view.tsx` — Client component: grid/list toggle with localStorage persistence via useSyncExternalStore, cursor-based "Load more" pagination
+  - `components/bookmark-list-item.tsx` — Compact list row component: favicon, title, domain, tags (max 3), date, favorite toggle
+  - `lib/actions/bookmark.ts` — Added `getBookmarks` server action with cursor-based pagination (20 per page)
+  - `app/dashboard/page.tsx` — Refactored to use BookmarkListView with initial data from getBookmarks
+  - `scripts/ralph/prd.json` — Marked US-012 as passes: true
+- **Learnings for future iterations:**
+  - ESLint `react-hooks/set-state-in-effect` rule disallows `setState` inside `useEffect` — use `useSyncExternalStore` for localStorage-backed state instead
+  - `useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)` is the correct way to read from external stores (like localStorage) without hydration mismatch
+  - Cursor-based pagination: `take: limit + 1` to check if there are more, then `slice(0, limit)` for the actual results
+  - `useTransition` works well for "Load more" — wraps the server action call and provides `loading` state automatically
+---
+
+## 2026-02-17 - US-013
+- What was implemented: Visit tracking on bookmark click
+- Files changed:
+  - `lib/actions/bookmark.ts` — Added `recordVisit` server action (increments visitCount, sets lastVisitedAt); added visitCount/lastVisitedAt to getBookmarks response mapping
+  - `components/bookmark-card.tsx` — Added visitCount/lastVisitedAt to BookmarkCardData type; onClick handler fires recordVisit; displays visit count and relative lastVisitedAt time
+  - `components/bookmark-list-item.tsx` — Added onClick handler for recordVisit; displays visit count and relative lastVisitedAt in list view
+  - `scripts/ralph/prd.json` — Marked US-013 as passes: true
+- **Learnings for future iterations:**
+  - `prisma.updateMany` is useful for conditional updates (where + userId check) without needing to fetch first — unlike `update` which only takes `id` in where
+  - Fire-and-forget pattern for visit tracking: `recordVisit(id).catch(() => {})` — don't await, don't block navigation
+  - `formatRelativeTime` helper duplicated in bookmark-card and bookmark-list-item — consider extracting to shared utils if used again
+---
+
+## 2026-02-17 - US-014
+- What was implemented: Edit bookmark form with dialog modal
+- Files changed:
+  - `components/edit-bookmark-dialog.tsx` — New component: Dialog with edit form for title, description, tags (removable chips + autocomplete input), folders (checkboxes)
+  - `components/bookmark-card.tsx` — Added pencil edit button (visible on hover) + EditBookmarkDialog integration
+  - `components/bookmark-list-item.tsx` — Added pencil edit button (visible on hover) + EditBookmarkDialog integration, added `group` class
+  - `lib/actions/bookmark.ts` — Added `updateBookmark` (transactional tag/folder replace), `getBookmarkDetails`, `getUserTags`, `getUserFolders` server actions
+  - `components/ui/dialog.tsx` — shadcn/ui Dialog component (installed)
+  - `components/ui/checkbox.tsx` — shadcn/ui Checkbox component (installed)
+  - `scripts/ralph/prd.json` — Marked US-014 as passes: true
+- **Learnings for future iterations:**
+  - `prisma.$transaction` with async callback is needed for multi-step atomic operations (update bookmark + replace tags + replace folders)
+  - `prisma.tag.upsert` with `name_userId` compound unique key handles "create if new, link if existing" tag pattern
+  - Tag autocomplete uses `onMouseDown` with `preventDefault` instead of `onClick` to prevent input blur from hiding suggestions before click registers
+  - Nested folder labels built recursively from flat array using `parentId` lookup
+  - Edit button uses `opacity-0 group-hover:opacity-100` pattern for show-on-hover
+---
+
+## 2026-02-17 - US-015
+- What was implemented: Delete bookmark with confirmation dialog
+- Files changed:
+  - `components/ui/alert-dialog.tsx` — shadcn/ui AlertDialog component (installed)
+  - `lib/actions/bookmark.ts` — Added `deleteBookmark` server action (transaction: delete tag/folder associations + bookmark)
+  - `components/bookmark-card.tsx` — Added trash icon delete button with AlertDialog confirmation, `onDelete` callback prop
+  - `components/bookmark-list-item.tsx` — Added trash icon delete button with AlertDialog confirmation, `onDelete` callback prop
+  - `components/bookmark-list-view.tsx` — Added `handleDelete` to filter deleted bookmark from local state (no page reload)
+  - `scripts/ralph/prd.json` — Marked US-015 as passes: true
+- **Learnings for future iterations:**
+  - shadcn/ui AlertDialog is the correct component for destructive confirmation dialogs (not Dialog)
+  - `onDelete` callback pattern: parent component (BookmarkListView) passes a callback to children, children call it after successful server action to remove from state
+  - AlertDialogTrigger button needs `onClick` with `e.stopPropagation()` to prevent event bubbling to parent click handlers
+  - Delete button reuses same `opacity-0 group-hover:opacity-100` hover-reveal pattern as edit button
+---
+
+## 2026-02-17 - US-016
+- What was implemented: AI tag suggestion provider interface with Claude, OpenAI, and Ollama implementations
+- Files changed:
+  - `lib/services/llm-provider.ts` — LLMProvider interface, three implementations (ClaudeProvider, OpenAIProvider, OllamaProvider), factory function getLLMProvider()
+  - `.env.example` — Added LLM_PROVIDER and LLM_API_KEY variables
+  - `package.json` / `bun.lock` — Added @anthropic-ai/sdk and openai dependencies
+  - `scripts/ralph/prd.json` — Marked US-016 as passes: true
+- **Learnings for future iterations:**
+  - `@anthropic-ai/sdk` and `openai` packages installed — import `Anthropic` from `@anthropic-ai/sdk`, `OpenAI` from `openai`
+  - Claude Haiku 4.5 model ID: `claude-haiku-4-5-20251001` — cheapest/fastest for tag suggestions
+  - Ollama API: POST to `/api/chat` with `{ model, stream: false, messages }` — returns `{ message: { content } }`
+  - `parseTags()` extracts JSON array from LLM response text using regex `\[[\s\S]*?\]` then validates each tag format
+  - `.env.example` is gitignored by `.env*` pattern — needs `git add -f` to commit
+  - Factory function returns `null` when LLM_PROVIDER is not set or API key is missing — callers should handle gracefully
+---
+
+## 2026-02-17 - US-017
+- What was implemented: AI tag suggestions on bookmark save
+- Files changed:
+  - `lib/actions/bookmark.ts` — Added `getTagSuggestions` (calls LLM provider) and `applyTagSuggestion` (upserts tag + links to bookmark) server actions
+  - `components/tag-suggestions.tsx` — New client component: shows loading state, then clickable colored tag chips with dismiss (X) button per tag and "Dismiss all" button
+  - `components/quick-add-with-suggestions.tsx` — New wrapper component: combines QuickAddBar with TagSuggestions, manages suggestion state via bookmarkId
+  - `components/quick-add-bar.tsx` — Added `onBookmarkAdded` callback prop to notify parent of new bookmark ID
+  - `app/dashboard/page.tsx` — Replaced QuickAddBar with QuickAddWithSuggestions
+  - `scripts/ralph/prd.json` — Marked US-017 as passes: true
+- **Learnings for future iterations:**
+  - Tag suggestions need a delay (2s setTimeout) after bookmark save to let metadata fetch complete first — otherwise LLM gets empty title/description
+  - `useCallback` for stable function references passed to child components prevents unnecessary re-renders
+  - Tag upsert + bookmark link is a two-step operation: first `prisma.tag.upsert` then check existing `bookmarkTag` before creating
+  - The `hashCode` + HSL color generation for tags is duplicated in bookmark-card.tsx and tag-suggestions.tsx — consider extracting to shared utils
+---
+
+## 2026-02-17 - US-018
+- What was implemented: Folder CRUD in sidebar (create, rename, delete)
+- Files changed:
+  - `lib/actions/folder.ts` — New file: createFolder, renameFolder, deleteFolder server actions
+  - `components/sidebar.tsx` — Added '+' create button with inline input, three-dot DropdownMenu per folder with Rename/Delete, AlertDialog for delete confirmation, inline Input for rename
+  - `components/dashboard-shell.tsx` — Import Folder type from sidebar.tsx (removed duplicate type)
+  - `app/dashboard/layout.tsx` — Import Folder type from sidebar.tsx (removed duplicate type)
+  - `components/ui/dropdown-menu.tsx` — shadcn/ui DropdownMenu component (installed)
+  - `scripts/ralph/prd.json` — Marked US-018 as passes: true
+- **Learnings for future iterations:**
+  - Folder type was duplicated in sidebar.tsx, dashboard-shell.tsx, and layout.tsx — consolidated to export from sidebar.tsx
+  - Delete folder needs to collect all descendant folder IDs first to remove BookmarkFolder associations before cascade delete
+  - Prisma schema `onDelete: Cascade` on Folder self-relation handles child folder deletion automatically — only BookmarkFolder cleanup needed manually
+  - DropdownMenu trigger inside a Link needs `onClick: e.preventDefault()` to prevent navigation when clicking the menu button
+  - Inline rename/create pattern: show Input on action, commit on Enter/blur, cancel on Escape
+---
+
+## 2026-02-17 - US-019
+- What was implemented: Nested folders with depth limit — collapsible folder tree, subfolder creation, 3-level depth enforcement, folder-based bookmark filtering
+- Files changed:
+  - `components/sidebar.tsx` — Added ChevronRight expand/collapse arrows for folders with children, FolderPlus "New subfolder" option in dropdown menu, subfolder creation with inline input, 3-level depth enforcement (client-side toast error), passed subfolder creation state through FolderItem props
+  - `lib/actions/folder.ts` — Added server-side depth enforcement in createFolder (getFolderDepth walks parentId chain), MAX_FOLDER_DEPTH constant
+  - `lib/actions/bookmark.ts` — Updated getBookmarks to accept optional `filter` param: 'favorites' (isFavorite: true), 'unsorted' (folders: { none: {} }), folder ID (folders: { some: { folderId } }), 'all'/undefined (no filter)
+  - `app/dashboard/page.tsx` — Reads `?folder=` search param via async searchParams, passes filter to getBookmarks, dynamic heading based on filter type, looks up folder name for specific folder filter
+  - `components/bookmark-list-view.tsx` — Accepts optional `filter` prop, passes to getBookmarks on "Load more"
+  - `scripts/ralph/prd.json` — Marked US-019 as passes: true
+- **Learnings for future iterations:**
+  - ESLint `react-hooks/set-state-in-effect` rule is strict — cannot call setState inside useEffect even conditionally. Move state changes to event handlers instead
+  - Prisma where clause typing: use explicit interface instead of conditional spread with inferred types — TypeScript can't infer union types well with spreads
+  - Next.js 16 `searchParams` in page components is a Promise that must be awaited: `const { folder } = await searchParams`
+  - Server-side depth enforcement: walk parentId chain with a while loop to count depth — more reliable than tree traversal from client
+  - Folder filtering: `folders: { none: {} }` gives "unsorted" bookmarks (no folder associations), `folders: { some: { folderId } }` filters by specific folder
+---
+
+## 2026-02-17 - US-020
+- What was implemented: Full-text search across bookmarks by title, description, URL, and tag name
+- Files changed:
+  - `prisma/migrations/20260217_add_search_vector/migration.sql` — Raw SQL migration: tsvector generated column (weighted A/B/C for title/description/url) + GIN index
+  - `lib/actions/bookmark.ts` — Added `searchBookmarks` server action using `Prisma.sql` tagged template for raw SQL with tsquery + tag ILIKE, added `Prisma` import from `@prisma/client`
+  - `components/search-bar.tsx` — New client component: search input with 300ms debounce using setTimeout ref, loading spinner, clear button
+  - `components/dashboard-content.tsx` — New client component: wraps SearchBar + BookmarkListView, manages search state, swaps between default and search results views
+  - `app/dashboard/page.tsx` — Replaced direct BookmarkListView with DashboardContent wrapper
+  - `scripts/ralph/prd.json` — Marked US-020 as passes: true
+- **Learnings for future iterations:**
+  - Prisma doesn't support tsvector natively — use raw SQL migration (not `prisma migrate dev` generated)
+  - Migration directory name format: `YYYYMMDD_description` — Prisma picks it up with `migrate deploy`
+  - `Prisma.sql` tagged template literal is type-safe for raw queries — use with `$queryRaw<Type[]>` for typed results
+  - tsvector GENERATED ALWAYS AS ... STORED creates an auto-updating column — no triggers needed
+  - setweight() with 'A'/'B'/'C' gives priority to title > description > url in ranking
+  - For prefix matching in tsquery, append `:*` to each word (e.g., `react:*` matches "react", "reactjs", "reactive")
+  - SearchBar debounce: use `useRef<ReturnType<typeof setTimeout>>` + `useTransition` for loading state — simpler than React Query for this use case
+  - DashboardContent wrapper pattern: parent manages search/default state, passes different props to BookmarkListView with `key` to force remount
+---
+
+## 2026-02-17 - US-021
+- What was implemented: Tag and folder filters on search — clickable tag filter chips below search bar, combined filtering with text search and folder selection
+- Files changed:
+  - `components/tag-filter-bar.tsx` — New component: row of colored tag chips, toggle selection, "Clear all" button, active filter count
+  - `components/dashboard-content.tsx` — Manages combined filter state: text search + tag filters + folder filter. useEffect re-fetches when tags change. Three display modes: search results, tag-filtered, or default
+  - `components/search-bar.tsx` — Added `tagIds` prop, passes to `searchBookmarks`
+  - `components/bookmark-list-view.tsx` — Added `tagIds` prop for "Load more" pagination with tag filters
+  - `lib/actions/bookmark.ts` — `getBookmarks` accepts `tagIds` (Prisma AND clause: `tags.some` per tag). `searchBookmarks` accepts `tagIds` (raw SQL COUNT DISTINCT match)
+  - `app/dashboard/page.tsx` — Fetches `getUserTags()` in parallel with bookmarks, passes `userTags` to DashboardContent
+  - `scripts/ralph/prd.json` — Marked US-021 as passes: true
+- **Learnings for future iterations:**
+  - Prisma AND filter for "must have ALL tags": `AND: tagIds.map(tagId => ({ tags: { some: { tagId } } }))` — each tag gets its own `some` clause
+  - Raw SQL equivalent for AND tag filter: `COUNT(DISTINCT tagId) WHERE tagId = ANY(array) = array.length`
+  - useRef isInitialMount pattern avoids running useEffect on first render when watching state changes
+  - DashboardContent now has three states: searching (text query active), tag-filtered (tags selected, no query), default (no filters)
+  - Tag filter changes trigger re-fetch in useEffect — search results updated for search+tags combo, getBookmarks for tags-only
+---
+
+## 2026-02-17 - US-022
+- What was implemented: Drag-and-drop bookmarks into folders using @dnd-kit/core
+- Files changed:
+  - `components/dnd-bookmark-wrapper.tsx` — New DraggableBookmarkCard wrapper using useDraggable
+  - `components/dashboard-shell.tsx` — Added DndContext with PointerSensor, DragOverlay, handleDragEnd calling addBookmarkToFolder
+  - `components/sidebar.tsx` — Added useDroppable to FolderItem with blue highlight on drag over
+  - `components/bookmark-list-view.tsx` — Wrapped BookmarkCard and BookmarkListItem in DraggableBookmarkCard
+  - `lib/actions/bookmark.ts` — Added addBookmarkToFolder server action (creates BookmarkFolder association, checks for duplicates)
+  - `package.json` / `bun.lock` — Added @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities
+  - `scripts/ralph/prd.json` — Marked US-022 as passes: true
+- **Learnings for future iterations:**
+  - @dnd-kit/core v6 API: DndContext wraps everything, useDraggable/useDroppable in individual components, DragOverlay for cursor preview
+  - PointerSensor with `activationConstraint: { distance: 8 }` prevents interfering with clicks on bookmark cards
+  - DndContext must wrap both sidebar (drop targets) and main content (draggable items) — DashboardShell is the right place
+  - useDraggable provides `data` prop to pass arbitrary context (bookmark data); useDroppable similarly passes folder data
+  - DragOverlay with `dropAnimation={null}` provides instant feedback without animation lag
+  - Wrapper component pattern works well: DraggableBookmarkCard wraps children without modifying BookmarkCard/BookmarkListItem internals
+---
+
+## 2026-02-17 - US-023
+- What was implemented: Drag-and-drop folder reordering and nesting in sidebar
+- Files changed:
+  - `components/sidebar.tsx` — Made FolderItem both draggable (useDraggable) and droppable (useDroppable). Added FolderDropGap components between folders as reorder drop targets. Added `position` to Folder type. Combined drag and drop refs on same element.
+  - `components/dashboard-shell.tsx` — Extended handleDragEnd to handle folder-on-folder (nesting) and folder-on-gap (reordering). Added activeFolderDrag state for folder DragOverlay preview. Added getSiblingIds helper to extract sibling order from folder tree. Imported moveFolderToParent and reorderFolders.
+  - `lib/actions/folder.ts` — Added moveFolderToParent server action (validates: not self, not descendant, depth constraint with subtree depth check). Added reorderFolders server action (batch position updates in transaction). Added getSubtreeDepth helper.
+  - `app/dashboard/layout.tsx` — Added `position` field to buildFolderTree output.
+  - `scripts/ralph/prd.json` — Marked US-023 as passes: true.
+- **Learnings for future iterations:**
+  - Combining useDraggable + useDroppable on same element: use combined ref callback `(node) => { setDropRef(node); setDragRef(node); }`
+  - For reordering, use gap droppables between items rather than complex collision detection — simpler and more predictable
+  - Depth enforcement for folder moves must check BOTH the target parent depth AND the moved folder's subtree depth to prevent deeply nested trees from exceeding the limit
+  - `collectDescendantIds` is also useful for preventing circular nesting (can't move a folder into its own descendant)
+  - Reorder within same parent: remove from current position, adjust insert index if moving downward (targetIndex > currentIndex means subtract 1)
+---
+
+## 2026-02-17 - US-024
+- What was implemented: Public sharing toggle and share URL for bookmarks and folders
+- Files changed:
+  - `components/share-dialog.tsx` — New reusable ShareDialog component for both bookmarks and folders. Switch toggle for public/private, share URL display, copy to clipboard.
+  - `components/ui/switch.tsx` — shadcn/ui Switch component (installed)
+  - `lib/actions/bookmark.ts` — Added `toggleBookmarkShare` (generates shareId via crypto.randomUUID, toggles isPublic) and `getBookmarkShareInfo` server actions
+  - `lib/actions/folder.ts` — Added `toggleFolderShare` and `getFolderShareInfo` server actions
+  - `components/bookmark-card.tsx` — Added Share2 icon button and ShareDialog integration
+  - `components/bookmark-list-item.tsx` — Added Share2 icon button and ShareDialog integration
+  - `components/sidebar.tsx` — Added Share option to folder three-dot DropdownMenu with ShareDialog
+- **Learnings for future iterations:**
+  - `crypto.randomUUID()` is built into Node.js — no need for nanoid/cuid packages for generating share IDs
+  - ShareDialog uses `useEffect` to fetch share info on open — pattern for lazy-loading dialog data
+  - shadcn/ui Switch component installed via `npx shadcn@latest add switch --yes`
+  - Reusable dialog pattern: pass `type` prop ("bookmark" | "folder") to dispatch to correct server actions
+  - shareId is preserved when toggling private — re-enabling produces the same URL
+---
+
+## 2026-02-17 - US-025
+- What was implemented: Public share page (read-only) at /share/[shareId]
+- Files changed:
+  - `app/share/[shareId]/page.tsx` — Server component: queries bookmark by shareId first, then folder. Renders SharedBookmarkCard (single large card) for bookmarks, grid of SharedBookmarkGridCard for folders. 404 via notFound() if not found or not public.
+  - `scripts/ralph/prd.json` — Marked US-025 as passes: true
+- **Learnings for future iterations:**
+  - Next.js `notFound()` from `next/navigation` triggers the default 404 page — no custom 404 needed
+  - Prisma `findUnique` with `shareId` works because shareId has `@unique` constraint on both Bookmark and Folder models
+  - Share page is a server component — no "use client" needed since there's no interactivity (read-only)
+  - Reused hashCode/domainToColor/tagToColor helpers locally (duplicated from bookmark-card.tsx) since server components can't import from client component files easily
+  - Middleware already allows `/share/*` routes without auth (set up in US-005)
+---
+
+## 2026-02-17 - US-026
+- What was implemented: Health check endpoint at GET /api/health
+- Files changed:
+  - `app/api/health/route.ts` — New API route: returns 200 with { status: 'ok', timestamp } on success, 503 with { status: 'error', timestamp } on DB failure
+  - `scripts/ralph/prd.json` — Marked US-026 as passes: true
+- **Learnings for future iterations:**
+  - Middleware matcher `["/((?!api|_next/static|_next/image|favicon.ico).*)"]` already excludes `/api` routes — no auth changes needed for API endpoints
+  - `prisma.$queryRaw\`SELECT 1\`` is the simplest DB connectivity check
+  - Catch block with no binding (`catch { }`) works in modern TypeScript for unused error variables
+---
+
+## 2026-02-17 - US-027
+- What was implemented: Dockerfile, docker-compose.yml, and Docker support files for containerized deployment
+- Files changed:
+  - `Dockerfile` — Multi-stage build: deps (bun install), builder (prisma generate + next build), runner (node:20-alpine standalone)
+  - `docker-entrypoint.sh` — Runs prisma migrate deploy then starts node server.js
+  - `docker-compose.yml` — App service (depends on postgres with healthcheck) + postgres:16-alpine with named volume
+  - `.dockerignore` — Excludes node_modules, .next, .git
+  - `.env.example` — Updated with all required env vars (DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL, LLM_PROVIDER, LLM_API_KEY), removed real credentials
+  - `next.config.ts` — Added `output: "standalone"` for Docker-optimized builds
+  - `lib/services/llm-provider.ts` — Removed "use server" directive (pre-existing change included)
+  - `scripts/ralph/prd.json` — Marked US-027 as passes: true
+- **Learnings for future iterations:**
+  - Next.js standalone output (`output: "standalone"` in next.config) is required for Docker — creates self-contained server.js
+  - Prisma client needs to be copied from node_modules/.prisma and node_modules/@prisma in the runner stage
+  - docker-entrypoint.sh runs migrations before app start — needs prisma binaries copied to runner stage
+  - docker-compose postgres healthcheck with `pg_isready` + `condition: service_healthy` ensures DB is ready before app starts
+  - .env.example was gitignored by `.env*` pattern — needs `git add -f` to include in commits
+---

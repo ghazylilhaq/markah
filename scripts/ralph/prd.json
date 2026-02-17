@@ -19,8 +19,8 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Prisma v6 used (v7 requires config file migration). DB connects to existing docker postgres with user pomo."
     },
     {
       "id": "US-002",
@@ -36,8 +36,8 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "NextAuth.js v5 beta.30 with credentials provider. No Prisma adapter needed since User model is custom (no Account/Session tables). JWT strategy used. Type augmentation in types/next-auth.d.ts."
     },
     {
       "id": "US-003",
@@ -55,8 +55,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Registration page at /register using shadcn/ui Card, Input, Label, Button. Auth layout in (auth) route group. Client-side validation for 8-char min password."
     },
     {
       "id": "US-004",
@@ -73,8 +73,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Login page at /login using signIn from next-auth/react with redirect:false. Same Card layout as registration. Redirects to /dashboard on success."
     },
     {
       "id": "US-005",
@@ -87,8 +87,8 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Middleware at middleware.ts uses NextAuth v5 auth() wrapper. Matcher excludes api and _next routes. Authenticated users redirected from /login and /register to /dashboard. Unauthenticated users redirected to /login for all non-public routes."
     },
     {
       "id": "US-006",
@@ -104,8 +104,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 6,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Landing page at / with hero, features grid, placeholder illustration area. Header has Sign In link to /login. Get Started CTA links to /register. Uses lucide-react icons, stone color palette, shadcn/ui Button. Responsive layout."
     },
     {
       "id": "US-007",
@@ -123,8 +123,8 @@
         "Typecheck passes"
       ],
       "priority": 7,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Seed script at prisma/seed.ts. Creates test user (test@markah.com / password123), 12 bookmarks, 8 tags, 3 folders (one nested). Idempotent via upsert + delete-recreate. Configured in package.json prisma.seed using tsx. Prisma v6 warns about package.json config being deprecated in v7."
     },
     {
       "id": "US-008",
@@ -143,8 +143,8 @@
         "Typecheck passes"
       ],
       "priority": 8,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Link preview service at lib/services/link-preview.ts. Uses fetch with 10s timeout, regex-based HTML parsing. Extracts og:title, og:description, og:image with fallbacks to <title> and <meta name='description'>. Favicon from <link rel='icon'> or /favicon.ico. Returns partial data (hostname as title) on errors. No external dependencies."
     },
     {
       "id": "US-009",
@@ -161,8 +161,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 9,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Dashboard layout at /dashboard with 250px fixed sidebar on desktop, Sheet-based hamburger menu on mobile (<768px). Sidebar shows All Bookmarks, Favorites, Unsorted virtual folders plus user's folder tree. Header displays app name, user email, and logout button. Server component layout fetches user and folders, passes to client DashboardShell component."
     },
     {
       "id": "US-010",
@@ -180,8 +180,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 10,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "QuickAddBar component at components/quick-add-bar.tsx. Server action addBookmark in lib/actions/bookmark.ts creates bookmark then fetches metadata asynchronously. Duplicate URL detection returns toast with existing bookmark title. Sonner toast added to root layout. URL normalization prepends https:// if missing."
     },
     {
       "id": "US-011",
@@ -198,8 +198,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 11,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "BookmarkCard component at components/bookmark-card.tsx. Displays thumbnail image or generated color card (deterministic HSL from domain hash + favicon overlay). Tags as colored badges with deterministic HSL from tag name hash. Star/favorite toggle with optimistic UI update via toggleFavorite server action. Dashboard page fetches bookmarks with tags via Prisma include and renders in responsive grid."
     },
     {
       "id": "US-012",
@@ -216,8 +216,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 12,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "BookmarkListView client component with grid/list toggle using useSyncExternalStore for localStorage persistence. BookmarkListItem for compact list rows. Cursor-based pagination via getBookmarks server action (20 per page). View toggle buttons in top-right corner of bookmark area."
     },
     {
       "id": "US-013",
@@ -231,8 +231,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 13,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "recordVisit server action increments visitCount and sets lastVisitedAt. Both BookmarkCard and BookmarkListItem fire recordVisit on click (fire-and-forget). Visit count and relative lastVisitedAt time displayed on cards and list items."
     },
     {
       "id": "US-014",
@@ -251,8 +251,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 14,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "EditBookmarkDialog component at components/edit-bookmark-dialog.tsx. Opens from pencil icon on BookmarkCard and BookmarkListItem. Pre-fills title, description, tags, folders. Tag input has autocomplete from existing user tags. Folders shown as checkboxes with nested path labels. Server actions: updateBookmark (transaction replaces tags/folders), getBookmarkDetails, getUserTags, getUserFolders in lib/actions/bookmark.ts. shadcn/ui Dialog and Checkbox components installed."
     },
     {
       "id": "US-015",
@@ -268,8 +268,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 15,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Delete button (trash icon) on BookmarkCard and BookmarkListItem with AlertDialog confirmation. deleteBookmark server action in lib/actions/bookmark.ts deletes tag/folder associations and bookmark in transaction. onDelete callback removes bookmark from list state without full page reload. shadcn/ui AlertDialog component installed."
     },
     {
       "id": "US-016",
@@ -287,8 +287,8 @@
         "Typecheck passes"
       ],
       "priority": 16,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "LLMProvider interface at lib/services/llm-provider.ts. Three implementations: ClaudeProvider (Anthropic SDK, claude-haiku-4-5), OpenAIProvider (OpenAI SDK, gpt-4o-mini), OllamaProvider (fetch to local API). Factory function getLLMProvider() reads LLM_PROVIDER env var. Prompt returns 3-5 lowercase/hyphenated tags as JSON array. parseTags() extracts and validates tags from LLM response. Returns empty array on any error."
     },
     {
       "id": "US-017",
@@ -305,8 +305,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 17,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "TagSuggestions component at components/tag-suggestions.tsx. QuickAddWithSuggestions wrapper at components/quick-add-with-suggestions.tsx. After bookmark save, waits 2s for metadata fetch then calls getTagSuggestions server action. Suggestions shown as clickable colored chips below URL bar. Clicking a tag calls applyTagSuggestion (upserts tag, links to bookmark). Dismiss individual tags or all. Auto-dismisses when all suggestions used/dismissed. Graceful fallback: no suggestions shown if LLM unavailable."
     },
     {
       "id": "US-018",
@@ -323,8 +323,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 18,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Folder CRUD in sidebar via lib/actions/folder.ts server actions (createFolder, renameFolder, deleteFolder). Sidebar updated with '+' button for inline folder creation, three-dot DropdownMenu on each folder with Rename and Delete options. Rename uses inline Input. Delete uses AlertDialog confirmation and moves bookmarks to Unsorted by deleting BookmarkFolder associations. Cascade deletion handles child folders via Prisma schema onDelete: Cascade. shadcn/ui DropdownMenu component installed. Folder type exported from sidebar.tsx."
     },
     {
       "id": "US-019",
@@ -343,8 +343,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 19,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Collapsible folder tree in sidebar with ChevronRight expand/collapse arrows. Subfolder creation via 'New subfolder' option in three-dot dropdown menu. 3-level depth enforcement on both client (sidebar) and server (createFolder action). Folder-based bookmark filtering: getBookmarks accepts filter param for 'all', 'favorites', 'unsorted', or specific folder ID. Dashboard page reads ?folder= search param for filtering and heading."
     },
     {
       "id": "US-020",
@@ -362,8 +362,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 20,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Prisma migration adds tsvector generated column (weighted: title A, description B, url C) with GIN index. searchBookmarks server action uses ts_rank + to_tsquery with prefix matching (:*) plus ILIKE on tag names. SearchBar component with 300ms debounce. DashboardContent wrapper manages search state, replaces bookmark list with search results when active. No results shows helpful message."
     },
     {
       "id": "US-021",
@@ -381,8 +381,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 21,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "TagFilterBar component at components/tag-filter-bar.tsx. Shows all user tags as colored clickable chips below search bar. Toggling a tag highlights it with ring indicator. Multiple tags = AND filter (bookmark must have ALL selected tags). DashboardContent manages combined state: text search + tag filters + folder filter. Server actions getBookmarks and searchBookmarks both accept tagIds parameter. getBookmarks uses Prisma AND clause with tags.some for each tag. searchBookmarks uses raw SQL COUNT(DISTINCT tagId) = tagIds.length. Active filter count shown with 'Clear all' button. Folder filter from sidebar combines with tag filters."
     },
     {
       "id": "US-022",
@@ -399,8 +399,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 22,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "@dnd-kit/core v6 with DndContext in DashboardShell. DraggableBookmarkCard wrapper in components/dnd-bookmark-wrapper.tsx. Sidebar FolderItem uses useDroppable with blue highlight on hover. addBookmarkToFolder server action in lib/actions/bookmark.ts. DragOverlay shows compact card preview. PointerSensor with 8px distance activation constraint to avoid interfering with clicks."
     },
     {
       "id": "US-023",
@@ -416,8 +416,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 23,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Folders are both draggable (useDraggable) and droppable (useDroppable) in sidebar. FolderDropGap components between folders for reorder targeting. DashboardShell handleDragEnd handles folder-on-folder (nesting via moveFolderToParent) and folder-on-gap (reordering via reorderFolders). Server-side depth enforcement: moveFolderToParent checks subtree depth + parent depth <= 3. Folder type extended with position field. DragOverlay shows folder name preview during drag."
     },
     {
       "id": "US-024",
@@ -434,8 +434,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 24,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "ShareDialog component at components/share-dialog.tsx. Reusable for both bookmarks and folders (type prop). Toggle uses Switch component from shadcn/ui. Share ID generated via crypto.randomUUID() (12-char slug). Server actions: toggleBookmarkShare/getBookmarkShareInfo in lib/actions/bookmark.ts, toggleFolderShare/getFolderShareInfo in lib/actions/folder.ts. Share button (Share2 icon) added to BookmarkCard and BookmarkListItem alongside edit/delete. Share option added to folder three-dot DropdownMenu in sidebar. Copy to clipboard via navigator.clipboard.writeText."
     },
     {
       "id": "US-025",
@@ -452,8 +452,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 25,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Public share page at /share/[shareId]. Server component queries Prisma for bookmark or folder by shareId. Bookmark view: single large card with thumbnail/color card, title, description, tags, Visit Link button. Folder view: grid of bookmark cards. 404 via notFound() if shareId not found or not public. Minimal read-only layout with Markah branding header. No edit/delete controls."
     },
     {
       "id": "US-026",
@@ -467,8 +467,8 @@
         "Typecheck passes"
       ],
       "priority": 26,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "GET /api/health returns 200 with { status: 'ok', timestamp } when DB is reachable, 503 with { status: 'error', timestamp } when not. Uses Prisma $queryRaw SELECT 1 for DB check. No auth required (middleware matcher excludes /api routes)."
     },
     {
       "id": "US-027",
@@ -486,8 +486,8 @@
         "Typecheck passes"
       ],
       "priority": 27,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Multi-stage Dockerfile (deps → build → runner) using node:20-alpine and bun. docker-compose.yml with app + postgres services, named volume for data persistence. App runs Prisma migrations on start via docker-entrypoint.sh. Next.js standalone output mode enabled. .env.example documents all required env vars."
     }
   ]
 }
