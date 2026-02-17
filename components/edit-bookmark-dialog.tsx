@@ -124,7 +124,7 @@ export function EditBookmarkDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="h-dvh max-h-dvh w-full max-w-full rounded-none top-0 left-0 translate-x-0 translate-y-0 flex flex-col md:h-auto md:max-h-[85dvh] md:max-w-lg md:rounded-lg md:top-[50%] md:left-[50%] md:translate-x-[-50%] md:translate-y-[-50%]">
         <DialogHeader>
           <DialogTitle>Edit Bookmark</DialogTitle>
           <DialogDescription>Update bookmark details, tags, and folder assignments.</DialogDescription>
@@ -135,7 +135,7 @@ export function EditBookmarkDialog({
             Loading...
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto flex-1 min-h-0">
             {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="edit-title">Title</Label>
