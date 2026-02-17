@@ -486,8 +486,8 @@
         "Typecheck passes"
       ],
       "priority": 27,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Multi-stage Dockerfile (deps → build → runner) using node:20-alpine and bun. docker-compose.yml with app + postgres services, named volume for data persistence. App runs Prisma migrations on start via docker-entrypoint.sh. Next.js standalone output mode enabled. .env.example documents all required env vars."
     }
   ]
 }

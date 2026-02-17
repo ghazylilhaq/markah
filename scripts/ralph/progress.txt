@@ -54,6 +54,8 @@
 - Share server actions: toggleBookmarkShare/getBookmarkShareInfo in bookmark.ts, toggleFolderShare/getFolderShareInfo in folder.ts.
 - Share URL format: /share/[shareId] — shareId generated via crypto.randomUUID().slice(0,12), preserved across public/private toggles.
 - moveFolderToParent and reorderFolders server actions in lib/actions/folder.ts for folder drag-and-drop.
+- Next.js standalone output enabled (`output: "standalone"` in next.config.ts) — required for Docker deployment.
+- Docker: multi-stage build with bun for deps/build, node:20-alpine for runtime. Entrypoint runs `prisma migrate deploy` before `node server.js`.
 
 # Ralph Progress Log
 Started: Tue Feb 17 02:05:07 WIB 2026
@@ -453,4 +455,23 @@ Started: Tue Feb 17 02:05:07 WIB 2026
   - Middleware matcher `["/((?!api|_next/static|_next/image|favicon.ico).*)"]` already excludes `/api` routes — no auth changes needed for API endpoints
   - `prisma.$queryRaw\`SELECT 1\`` is the simplest DB connectivity check
   - Catch block with no binding (`catch { }`) works in modern TypeScript for unused error variables
+---
+
+## 2026-02-17 - US-027
+- What was implemented: Dockerfile, docker-compose.yml, and Docker support files for containerized deployment
+- Files changed:
+  - `Dockerfile` — Multi-stage build: deps (bun install), builder (prisma generate + next build), runner (node:20-alpine standalone)
+  - `docker-entrypoint.sh` — Runs prisma migrate deploy then starts node server.js
+  - `docker-compose.yml` — App service (depends on postgres with healthcheck) + postgres:16-alpine with named volume
+  - `.dockerignore` — Excludes node_modules, .next, .git
+  - `.env.example` — Updated with all required env vars (DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL, LLM_PROVIDER, LLM_API_KEY), removed real credentials
+  - `next.config.ts` — Added `output: "standalone"` for Docker-optimized builds
+  - `lib/services/llm-provider.ts` — Removed "use server" directive (pre-existing change included)
+  - `scripts/ralph/prd.json` — Marked US-027 as passes: true
+- **Learnings for future iterations:**
+  - Next.js standalone output (`output: "standalone"` in next.config) is required for Docker — creates self-contained server.js
+  - Prisma client needs to be copied from node_modules/.prisma and node_modules/@prisma in the runner stage
+  - docker-entrypoint.sh runs migrations before app start — needs prisma binaries copied to runner stage
+  - docker-compose postgres healthcheck with `pg_isready` + `condition: service_healthy` ensures DB is ready before app starts
+  - .env.example was gitignored by `.env*` pattern — needs `git add -f` to include in commits
 ---
