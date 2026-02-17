@@ -192,6 +192,22 @@ export async function getBookmarkDetails(bookmarkId: string) {
   };
 }
 
+export async function deleteBookmark(bookmarkId: string) {
+  const user = await requireUser();
+
+  const bookmark = await prisma.bookmark.findFirst({
+    where: { id: bookmarkId, userId: user.id },
+  });
+  if (!bookmark) throw new Error("Bookmark not found");
+
+  // Delete associations and bookmark (BookmarkTag and BookmarkFolder cascade via schema, but explicit for clarity)
+  await prisma.$transaction(async (tx) => {
+    await tx.bookmarkTag.deleteMany({ where: { bookmarkId } });
+    await tx.bookmarkFolder.deleteMany({ where: { bookmarkId } });
+    await tx.bookmark.delete({ where: { id: bookmarkId } });
+  });
+}
+
 async function fetchAndUpdateMetadata(bookmarkId: string, url: string) {
   const preview = await fetchLinkPreview(url);
 

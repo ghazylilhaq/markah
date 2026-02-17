@@ -52,6 +52,10 @@ export function BookmarkListView({
     });
   }
 
+  function handleDelete(id: string) {
+    setBookmarks((prev) => prev.filter((b) => b.id !== id));
+  }
+
   return (
     <div className="space-y-4">
       {/* View toggle */}
@@ -88,13 +92,13 @@ export function BookmarkListView({
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {bookmarks.map((bookmark) => (
-            <BookmarkCard key={bookmark.id} bookmark={bookmark} />
+            <BookmarkCard key={bookmark.id} bookmark={bookmark} onDelete={handleDelete} />
           ))}
         </div>
       ) : (
         <div className="space-y-2">
           {bookmarks.map((bookmark) => (
-            <BookmarkListItem key={bookmark.id} bookmark={bookmark} />
+            <BookmarkListItem key={bookmark.id} bookmark={bookmark} onDelete={handleDelete} />
           ))}
         </div>
       )}

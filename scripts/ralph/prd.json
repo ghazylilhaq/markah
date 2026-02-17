@@ -268,8 +268,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 15,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Delete button (trash icon) on BookmarkCard and BookmarkListItem with AlertDialog confirmation. deleteBookmark server action in lib/actions/bookmark.ts deletes tag/folder associations and bookmark in transaction. onDelete callback removes bookmark from list state without full page reload. shadcn/ui AlertDialog component installed."
     },
     {
       "id": "US-016",

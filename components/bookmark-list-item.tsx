@@ -1,13 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { Star, ExternalLink, Pencil } from "lucide-react";
+import { Star, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { toggleFavorite, recordVisit } from "@/lib/actions/bookmark";
+import { toggleFavorite, recordVisit, deleteBookmark } from "@/lib/actions/bookmark";
 import { useRouter } from "next/navigation";
 import type { BookmarkCardData } from "@/components/bookmark-card";
 import { EditBookmarkDialog } from "@/components/edit-bookmark-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 function getDomain(url: string): string {
   try {
@@ -59,12 +71,15 @@ function formatRelativeTime(dateStr: string): string {
 
 export function BookmarkListItem({
   bookmark,
+  onDelete,
 }: {
   bookmark: BookmarkCardData;
+  onDelete?: (id: string) => void;
 }) {
   const [isFavorite, setIsFavorite] = useState(bookmark.isFavorite);
   const [toggling, setToggling] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
   const domain = getDomain(bookmark.url);
 
@@ -174,6 +189,52 @@ export function BookmarkListItem({
       >
         <Pencil className="h-4 w-4" />
       </button>
+
+      {/* Delete */}
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            className="shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-red-500 group-hover:opacity-100"
+            aria-label="Delete bookmark"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this bookmark?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete &quot;{bookmark.title || bookmark.url}&quot; and remove all its tag and folder associations.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={async () => {
+                setDeleting(true);
+                try {
+                  await deleteBookmark(bookmark.id);
+                  onDelete?.(bookmark.id);
+                  toast.success("Bookmark deleted");
+                  router.refresh();
+                } catch {
+                  toast.error("Failed to delete bookmark");
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Favorite */}
       <button
