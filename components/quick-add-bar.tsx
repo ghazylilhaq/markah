@@ -32,7 +32,11 @@ function normalizeUrl(str: string): string {
   }
 }
 
-export function QuickAddBar() {
+export function QuickAddBar({
+  onBookmarkAdded,
+}: {
+  onBookmarkAdded?: (bookmarkId: string) => void;
+}) {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -50,9 +54,10 @@ export function QuickAddBar() {
         toast.info("Bookmark already exists", {
           description: result.title || trimmed,
         });
-      } else if (result.success) {
+      } else if (result.success && result.bookmarkId) {
         setUrl("");
         router.refresh();
+        onBookmarkAdded?.(result.bookmarkId);
       }
     } catch {
       toast.error("Failed to save bookmark");

@@ -271,3 +271,19 @@ Started: Tue Feb 17 02:05:07 WIB 2026
   - `.env.example` is gitignored by `.env*` pattern — needs `git add -f` to commit
   - Factory function returns `null` when LLM_PROVIDER is not set or API key is missing — callers should handle gracefully
 ---
+
+## 2026-02-17 - US-017
+- What was implemented: AI tag suggestions on bookmark save
+- Files changed:
+  - `lib/actions/bookmark.ts` — Added `getTagSuggestions` (calls LLM provider) and `applyTagSuggestion` (upserts tag + links to bookmark) server actions
+  - `components/tag-suggestions.tsx` — New client component: shows loading state, then clickable colored tag chips with dismiss (X) button per tag and "Dismiss all" button
+  - `components/quick-add-with-suggestions.tsx` — New wrapper component: combines QuickAddBar with TagSuggestions, manages suggestion state via bookmarkId
+  - `components/quick-add-bar.tsx` — Added `onBookmarkAdded` callback prop to notify parent of new bookmark ID
+  - `app/dashboard/page.tsx` — Replaced QuickAddBar with QuickAddWithSuggestions
+  - `scripts/ralph/prd.json` — Marked US-017 as passes: true
+- **Learnings for future iterations:**
+  - Tag suggestions need a delay (2s setTimeout) after bookmark save to let metadata fetch complete first — otherwise LLM gets empty title/description
+  - `useCallback` for stable function references passed to child components prevents unnecessary re-renders
+  - Tag upsert + bookmark link is a two-step operation: first `prisma.tag.upsert` then check existing `bookmarkTag` before creating
+  - The `hashCode` + HSL color generation for tags is duplicated in bookmark-card.tsx and tag-suggestions.tsx — consider extracting to shared utils
+---

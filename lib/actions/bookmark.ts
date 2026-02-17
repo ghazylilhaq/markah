@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { fetchLinkPreview } from "@/lib/services/link-preview";
+import { getLLMProvider } from "@/lib/services/llm-provider";
 
 export async function addBookmark(url: string) {
   const user = await requireUser();
@@ -206,6 +207,61 @@ export async function deleteBookmark(bookmarkId: string) {
     await tx.bookmarkFolder.deleteMany({ where: { bookmarkId } });
     await tx.bookmark.delete({ where: { id: bookmarkId } });
   });
+}
+
+export async function getTagSuggestions(bookmarkId: string): Promise<string[]> {
+  const user = await requireUser();
+
+  const bookmark = await prisma.bookmark.findFirst({
+    where: { id: bookmarkId, userId: user.id },
+    select: { title: true, description: true, url: true },
+  });
+
+  if (!bookmark) return [];
+
+  const provider = getLLMProvider();
+  if (!provider) return [];
+
+  try {
+    return await provider.suggestTags(
+      bookmark.title || "",
+      bookmark.description || "",
+      bookmark.url
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function applyTagSuggestion(
+  bookmarkId: string,
+  tagName: string
+) {
+  const user = await requireUser();
+
+  const bookmark = await prisma.bookmark.findFirst({
+    where: { id: bookmarkId, userId: user.id },
+  });
+  if (!bookmark) throw new Error("Bookmark not found");
+
+  // Upsert tag (get existing or create new)
+  const tag = await prisma.tag.upsert({
+    where: { name_userId: { name: tagName, userId: user.id } },
+    update: {},
+    create: { name: tagName, userId: user.id },
+  });
+
+  // Link tag to bookmark (skip if already linked)
+  const existing = await prisma.bookmarkTag.findFirst({
+    where: { bookmarkId, tagId: tag.id },
+  });
+  if (!existing) {
+    await prisma.bookmarkTag.create({
+      data: { bookmarkId, tagId: tag.id },
+    });
+  }
+
+  return { tagId: tag.id, tagName: tag.name };
 }
 
 async function fetchAndUpdateMetadata(bookmarkId: string, url: string) {

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { QuickAddBar } from "@/components/quick-add-bar";
+import { QuickAddWithSuggestions } from "@/components/quick-add-with-suggestions";
 import { BookmarkListView } from "@/components/bookmark-list-view";
 import { getBookmarks } from "@/lib/actions/bookmark";
 
@@ -24,7 +24,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <QuickAddBar />
+      <QuickAddWithSuggestions />
 
       <BookmarkListView
         initialBookmarks={bookmarks}

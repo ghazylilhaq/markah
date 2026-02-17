@@ -305,8 +305,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 17,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "TagSuggestions component at components/tag-suggestions.tsx. QuickAddWithSuggestions wrapper at components/quick-add-with-suggestions.tsx. After bookmark save, waits 2s for metadata fetch then calls getTagSuggestions server action. Suggestions shown as clickable colored chips below URL bar. Clicking a tag calls applyTagSuggestion (upserts tag, links to bookmark). Dismiss individual tags or all. Auto-dismisses when all suggestions used/dismissed. Graceful fallback: no suggestions shown if LLM unavailable."
     },
     {
       "id": "US-018",
