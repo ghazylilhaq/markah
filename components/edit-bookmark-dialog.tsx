@@ -173,7 +173,7 @@ export function EditBookmarkDialog({
                     <button
                       type="button"
                       onClick={() => removeTag(tag)}
-                      className="rounded-full p-0.5 hover:bg-black/10"
+                      className="rounded-full min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:p-0.5 flex items-center justify-center hover:bg-black/10"
                     >
                       <X className="h-3 w-3" />
                     </button>

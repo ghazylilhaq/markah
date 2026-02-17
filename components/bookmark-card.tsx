@@ -317,7 +317,7 @@ export function BookmarkCard({
           <button
             onClick={handleToggleFavorite}
             disabled={toggling}
-            className="shrink-0 p-0.5 text-stone-400 transition-colors hover:text-amber-500"
+            className="shrink-0 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:p-0.5 flex items-center justify-center text-stone-400 transition-colors hover:text-amber-500"
             aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
             <Star

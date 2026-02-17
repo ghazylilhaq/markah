@@ -72,7 +72,7 @@ export function SearchBar({
             variant="ghost"
             size="icon-sm"
             onClick={handleClear}
-            className="h-6 w-6 text-stone-400 hover:text-stone-600"
+            className="min-h-[44px] min-w-[44px] md:h-6 md:w-6 md:min-h-0 md:min-w-0 text-stone-400 hover:text-stone-600"
           >
             <X className="h-3.5 w-3.5" />
           </Button>

@@ -73,7 +73,7 @@ export function BookmarkListView({
           size="icon-sm"
           onClick={() => setViewMode("grid")}
           className={cn(
-            "text-stone-400",
+            "min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 text-stone-400",
             viewMode === "grid" && "bg-stone-100 text-stone-900"
           )}
           aria-label="Grid view"
@@ -85,7 +85,7 @@ export function BookmarkListView({
           size="icon-sm"
           onClick={() => setViewMode("list")}
           className={cn(
-            "text-stone-400",
+            "min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 text-stone-400",
             viewMode === "list" && "bg-stone-100 text-stone-900"
           )}
           aria-label="List view"
