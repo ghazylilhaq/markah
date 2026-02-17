@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Star, ExternalLink } from "lucide-react";
+import { Star, ExternalLink, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toggleFavorite, recordVisit } from "@/lib/actions/bookmark";
 import { useRouter } from "next/navigation";
+import { EditBookmarkDialog } from "@/components/edit-bookmark-dialog";
 
 type Tag = {
   id: string;
@@ -83,6 +84,7 @@ function formatRelativeTime(dateStr: string): string {
 export function BookmarkCard({ bookmark }: { bookmark: BookmarkCardData }) {
   const [isFavorite, setIsFavorite] = useState(bookmark.isFavorite);
   const [toggling, setToggling] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const router = useRouter();
   const domain = getDomain(bookmark.url);
 
@@ -162,6 +164,17 @@ export function BookmarkCard({ bookmark }: { bookmark: BookmarkCardData }) {
             </h3>
           </a>
           <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setEditOpen(true);
+            }}
+            className="shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-stone-600 group-hover:opacity-100"
+            aria-label="Edit bookmark"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+          <button
             onClick={handleToggleFavorite}
             disabled={toggling}
             className="shrink-0 p-0.5 text-stone-400 transition-colors hover:text-amber-500"
@@ -235,6 +248,12 @@ export function BookmarkCard({ bookmark }: { bookmark: BookmarkCardData }) {
           </div>
         )}
       </div>
+
+      <EditBookmarkDialog
+        bookmarkId={bookmark.id}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
     </div>
   );
 }

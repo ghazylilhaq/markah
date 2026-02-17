@@ -106,6 +106,92 @@ export async function recordVisit(bookmarkId: string) {
   });
 }
 
+export async function updateBookmark(
+  bookmarkId: string,
+  data: {
+    title: string;
+    description: string;
+    tagNames: string[];
+    folderIds: string[];
+  }
+) {
+  const user = await requireUser();
+
+  const bookmark = await prisma.bookmark.findFirst({
+    where: { id: bookmarkId, userId: user.id },
+  });
+  if (!bookmark) throw new Error("Bookmark not found");
+
+  await prisma.$transaction(async (tx) => {
+    // Update bookmark fields
+    await tx.bookmark.update({
+      where: { id: bookmarkId },
+      data: {
+        title: data.title || null,
+        description: data.description || null,
+      },
+    });
+
+    // Replace tags: delete existing, create/link new ones
+    await tx.bookmarkTag.deleteMany({ where: { bookmarkId } });
+    for (const name of data.tagNames) {
+      const tag = await tx.tag.upsert({
+        where: { name_userId: { name, userId: user.id } },
+        update: {},
+        create: { name, userId: user.id },
+      });
+      await tx.bookmarkTag.create({
+        data: { bookmarkId, tagId: tag.id },
+      });
+    }
+
+    // Replace folder assignments
+    await tx.bookmarkFolder.deleteMany({ where: { bookmarkId } });
+    for (const folderId of data.folderIds) {
+      await tx.bookmarkFolder.create({
+        data: { bookmarkId, folderId },
+      });
+    }
+  });
+}
+
+export async function getUserTags() {
+  const user = await requireUser();
+  return prisma.tag.findMany({
+    where: { userId: user.id },
+    select: { id: true, name: true, color: true },
+    orderBy: { name: "asc" },
+  });
+}
+
+export async function getUserFolders() {
+  const user = await requireUser();
+  return prisma.folder.findMany({
+    where: { userId: user.id },
+    select: { id: true, name: true, parentId: true },
+    orderBy: { name: "asc" },
+  });
+}
+
+export async function getBookmarkDetails(bookmarkId: string) {
+  const user = await requireUser();
+  const bookmark = await prisma.bookmark.findFirst({
+    where: { id: bookmarkId, userId: user.id },
+    include: {
+      tags: { include: { tag: { select: { id: true, name: true } } } },
+      folders: { include: { folder: { select: { id: true, name: true } } } },
+    },
+  });
+  if (!bookmark) return null;
+  return {
+    id: bookmark.id,
+    title: bookmark.title ?? "",
+    description: bookmark.description ?? "",
+    tags: bookmark.tags.map((bt) => bt.tag.name),
+    folderIds: bookmark.folders.map((bf) => bf.folder.id),
+  };
+}
+
 async function fetchAndUpdateMetadata(bookmarkId: string, url: string) {
   const preview = await fetchLinkPreview(url);
 

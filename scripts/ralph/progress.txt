@@ -29,6 +29,9 @@
 - Prisma join table queries: `include: { tags: { include: { tag: true } } }`, then flatten with `.map(bt => bt.tag)`.
 - For localStorage-backed state, use `useSyncExternalStore` (not useState + useEffect) to avoid ESLint `set-state-in-effect` error.
 - Cursor-based pagination pattern: `take: limit + 1`, check `length > limit` for hasMore, `slice(0, limit)` for results.
+- Use `prisma.$transaction(async (tx) => { ... })` for multi-step atomic operations (e.g., update bookmark + replace tags + replace folders).
+- Tag upsert pattern: `tx.tag.upsert({ where: { name_userId: { name, userId } }, update: {}, create: { name, userId } })` to get-or-create tags.
+- shadcn/ui Dialog + Checkbox components installed and available.
 
 # Ralph Progress Log
 Started: Tue Feb 17 02:05:07 WIB 2026
@@ -213,4 +216,22 @@ Started: Tue Feb 17 02:05:07 WIB 2026
   - `prisma.updateMany` is useful for conditional updates (where + userId check) without needing to fetch first — unlike `update` which only takes `id` in where
   - Fire-and-forget pattern for visit tracking: `recordVisit(id).catch(() => {})` — don't await, don't block navigation
   - `formatRelativeTime` helper duplicated in bookmark-card and bookmark-list-item — consider extracting to shared utils if used again
+---
+
+## 2026-02-17 - US-014
+- What was implemented: Edit bookmark form with dialog modal
+- Files changed:
+  - `components/edit-bookmark-dialog.tsx` — New component: Dialog with edit form for title, description, tags (removable chips + autocomplete input), folders (checkboxes)
+  - `components/bookmark-card.tsx` — Added pencil edit button (visible on hover) + EditBookmarkDialog integration
+  - `components/bookmark-list-item.tsx` — Added pencil edit button (visible on hover) + EditBookmarkDialog integration, added `group` class
+  - `lib/actions/bookmark.ts` — Added `updateBookmark` (transactional tag/folder replace), `getBookmarkDetails`, `getUserTags`, `getUserFolders` server actions
+  - `components/ui/dialog.tsx` — shadcn/ui Dialog component (installed)
+  - `components/ui/checkbox.tsx` — shadcn/ui Checkbox component (installed)
+  - `scripts/ralph/prd.json` — Marked US-014 as passes: true
+- **Learnings for future iterations:**
+  - `prisma.$transaction` with async callback is needed for multi-step atomic operations (update bookmark + replace tags + replace folders)
+  - `prisma.tag.upsert` with `name_userId` compound unique key handles "create if new, link if existing" tag pattern
+  - Tag autocomplete uses `onMouseDown` with `preventDefault` instead of `onClick` to prevent input blur from hiding suggestions before click registers
+  - Nested folder labels built recursively from flat array using `parentId` lookup
+  - Edit button uses `opacity-0 group-hover:opacity-100` pattern for show-on-hover
 ---

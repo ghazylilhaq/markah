@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Star, ExternalLink } from "lucide-react";
+import { Star, ExternalLink, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toggleFavorite, recordVisit } from "@/lib/actions/bookmark";
 import { useRouter } from "next/navigation";
 import type { BookmarkCardData } from "@/components/bookmark-card";
+import { EditBookmarkDialog } from "@/components/edit-bookmark-dialog";
 
 function getDomain(url: string): string {
   try {
@@ -63,6 +64,7 @@ export function BookmarkListItem({
 }) {
   const [isFavorite, setIsFavorite] = useState(bookmark.isFavorite);
   const [toggling, setToggling] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const router = useRouter();
   const domain = getDomain(bookmark.url);
 
@@ -90,7 +92,7 @@ export function BookmarkListItem({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-3 py-2 transition-shadow hover:shadow-sm">
+    <div className="group flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-3 py-2 transition-shadow hover:shadow-sm">
       {/* Favicon */}
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-stone-100">
         {bookmark.favicon ? (
@@ -160,6 +162,19 @@ export function BookmarkListItem({
         {formatDate(bookmark.createdAt)}
       </span>
 
+      {/* Edit */}
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setEditOpen(true);
+        }}
+        className="shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-stone-600 group-hover:opacity-100"
+        aria-label="Edit bookmark"
+      >
+        <Pencil className="h-4 w-4" />
+      </button>
+
       {/* Favorite */}
       <button
         onClick={handleToggleFavorite}
@@ -174,6 +189,12 @@ export function BookmarkListItem({
           )}
         />
       </button>
+
+      <EditBookmarkDialog
+        bookmarkId={bookmark.id}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
     </div>
   );
 }
