@@ -467,8 +467,8 @@
         "Typecheck passes"
       ],
       "priority": 26,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "GET /api/health returns 200 with { status: 'ok', timestamp } when DB is reachable, 503 with { status: 'error', timestamp } when not. Uses Prisma $queryRaw SELECT 1 for DB check. No auth required (middleware matcher excludes /api routes)."
     },
     {
       "id": "US-027",

@@ -443,3 +443,14 @@ Started: Tue Feb 17 02:05:07 WIB 2026
   - Reused hashCode/domainToColor/tagToColor helpers locally (duplicated from bookmark-card.tsx) since server components can't import from client component files easily
   - Middleware already allows `/share/*` routes without auth (set up in US-005)
 ---
+
+## 2026-02-17 - US-026
+- What was implemented: Health check endpoint at GET /api/health
+- Files changed:
+  - `app/api/health/route.ts` — New API route: returns 200 with { status: 'ok', timestamp } on success, 503 with { status: 'error', timestamp } on DB failure
+  - `scripts/ralph/prd.json` — Marked US-026 as passes: true
+- **Learnings for future iterations:**
+  - Middleware matcher `["/((?!api|_next/static|_next/image|favicon.ico).*)"]` already excludes `/api` routes — no auth changes needed for API endpoints
+  - `prisma.$queryRaw\`SELECT 1\`` is the simplest DB connectivity check
+  - Catch block with no binding (`catch { }`) works in modern TypeScript for unused error variables
+---
