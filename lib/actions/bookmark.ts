@@ -28,9 +28,8 @@ export async function addBookmark(url: string) {
     },
   });
 
-  // Async metadata fetch - don't await in the response path
-  // Instead, fetch and update in the background
-  fetchAndUpdateMetadata(bookmark.id, url).catch(() => {
+  // Async metadata fetch + auto-tagging - don't await in the response path
+  fetchAndUpdateMetadata(bookmark.id, url, user.id).catch(() => {
     // Silently ignore errors - bookmark was already saved
   });
 
@@ -470,7 +469,7 @@ export async function getBookmarkShareInfo(bookmarkId: string) {
   return { isPublic: bookmark.isPublic, shareId: bookmark.shareId };
 }
 
-async function fetchAndUpdateMetadata(bookmarkId: string, url: string) {
+async function fetchAndUpdateMetadata(bookmarkId: string, url: string, userId: string) {
   const preview = await fetchLinkPreview(url);
 
   await prisma.bookmark.update({
@@ -482,4 +481,28 @@ async function fetchAndUpdateMetadata(bookmarkId: string, url: string) {
       favicon: preview.favicon,
     },
   });
+
+  // Auto-tag with AI
+  const provider = getLLMProvider();
+  if (provider) {
+    try {
+      const tags = await provider.suggestTags(
+        preview.title || "",
+        preview.description || "",
+        url
+      );
+      for (const tagName of tags.slice(0, 3)) {
+        const tag = await prisma.tag.upsert({
+          where: { name_userId: { name: tagName, userId } },
+          update: {},
+          create: { name: tagName, userId },
+        });
+        await prisma.bookmarkTag.create({
+          data: { bookmarkId, tagId: tag.id },
+        }).catch(() => {}); // Skip if already linked
+      }
+    } catch {
+      // Silently ignore — tags are optional
+    }
+  }
 }

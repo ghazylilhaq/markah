@@ -137,7 +137,7 @@ export function DashboardContent({
         />
       ) : (
         <BookmarkListView
-          key="default"
+          key={`default-${initialBookmarks.map(b => b.id).join(",")}-${initialCursor ?? ""}`}
           initialBookmarks={initialBookmarks}
           initialCursor={initialCursor}
           filter={filter}

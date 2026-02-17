@@ -206,6 +206,7 @@ export function DashboardShell({
 
   return (
     <DndContext
+      id="markah-dnd"
       sensors={sensors}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}

@@ -10,7 +10,8 @@ export interface LLMProvider {
 }
 
 const SYSTEM_PROMPT =
-  "You are a bookmark tagging assistant. Given a bookmark's title, description, and URL, suggest 3-5 relevant tags. " +
+  "You are a bookmark tagging assistant. Given a bookmark's title, description, and URL, suggest exactly 3 relevant tags. " +
+  "Prioritize general, broad tags over highly specific ones. " +
   "Tags must be lowercase, single-word or hyphenated (e.g. 'javascript', 'machine-learning'). " +
   "Return ONLY a JSON array of strings, no other text. Example: [\"javascript\", \"tutorial\", \"web-dev\"]";
 
@@ -32,7 +33,7 @@ function parseTags(text: string): string[] {
       .filter((t): t is string => typeof t === "string")
       .map((t) => t.toLowerCase().trim())
       .filter((t) => t.length > 0 && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(t))
-      .slice(0, 5);
+      .slice(0, 3);
   } catch {
     return [];
   }
