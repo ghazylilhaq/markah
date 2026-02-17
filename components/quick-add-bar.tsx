@@ -32,11 +32,7 @@ function normalizeUrl(str: string): string {
   }
 }
 
-export function QuickAddBar({
-  onBookmarkAdded,
-}: {
-  onBookmarkAdded?: (bookmarkId: string) => void;
-}) {
+export function QuickAddBar() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -56,8 +52,8 @@ export function QuickAddBar({
         });
       } else if (result.success && result.bookmarkId) {
         setUrl("");
+        toast.success("Bookmark saved — AI tags will be added automatically");
         router.refresh();
-        onBookmarkAdded?.(result.bookmarkId);
       }
     } catch {
       toast.error("Failed to save bookmark");

@@ -332,8 +332,9 @@ function FolderItem({
       // If currently viewing the deleted folder, navigate to all bookmarks
       if (currentFolder === folder.id) {
         router.push("/dashboard");
+      } else {
+        router.refresh();
       }
-      router.refresh();
       toast.success(`Folder "${folder.name}" deleted`);
     } catch {
       toast.error("Failed to delete folder");

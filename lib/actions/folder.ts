@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 
@@ -49,6 +50,7 @@ export async function createFolder(name: string, parentId?: string) {
     },
   });
 
+  revalidatePath("/dashboard", "layout");
   return { id: folder.id, name: folder.name };
 }
 
@@ -64,6 +66,8 @@ export async function renameFolder(folderId: string, name: string) {
     where: { id: folderId },
     data: { name },
   });
+
+  revalidatePath("/dashboard", "layout");
 }
 
 export async function deleteFolder(folderId: string) {
@@ -87,6 +91,8 @@ export async function deleteFolder(folderId: string) {
     // Delete the folder (cascade deletes children due to schema onDelete: Cascade)
     await tx.folder.delete({ where: { id: folderId } });
   });
+
+  revalidatePath("/dashboard", "layout");
 }
 
 async function collectDescendantIds(
@@ -181,6 +187,8 @@ export async function moveFolderToParent(
       position: (maxPos._max.position ?? 0) + 1,
     },
   });
+
+  revalidatePath("/dashboard", "layout");
 }
 
 export async function toggleFolderShare(folderId: string) {
@@ -230,4 +238,6 @@ export async function reorderFolders(folderIds: string[]) {
       })
     )
   );
+
+  revalidatePath("/dashboard", "layout");
 }

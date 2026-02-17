@@ -16,7 +16,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { ShareDialog } from "@/components/share-dialog";
@@ -106,6 +105,7 @@ export function BookmarkCard({
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const router = useRouter();
   const domain = getDomain(bookmark.url);
 
@@ -206,19 +206,18 @@ export function BookmarkCard({
           >
             <Pencil className="h-4 w-4" />
           </button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                className="shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-red-500 group-hover:opacity-100"
-                aria-label="Delete bookmark"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </AlertDialogTrigger>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowDeleteDialog(true);
+            }}
+            className="shrink-0 p-0.5 text-stone-400 opacity-0 transition-all hover:text-red-500 group-hover:opacity-100"
+            aria-label="Delete bookmark"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure you want to delete this bookmark?</AlertDialogTitle>
