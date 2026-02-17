@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { fetchLinkPreview } from "@/lib/services/link-preview";
@@ -281,6 +282,110 @@ export async function applyTagSuggestion(
   }
 
   return { tagId: tag.id, tagName: tag.name };
+}
+
+export async function searchBookmarks(
+  query: string,
+  filter?: string
+) {
+  const user = await requireUser();
+
+  // Sanitize query: remove special tsquery characters, trim
+  const sanitized = query.trim().replace(/[&|!():*<>'"\\]/g, " ").trim();
+  if (!sanitized) {
+    return getBookmarks(undefined, 20, filter);
+  }
+
+  // Build tsquery: split words, join with & (AND), add :* for prefix matching
+  const tsquery = sanitized
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => `${word}:*`)
+    .join(" & ");
+
+  // Build filter conditions
+  let filterCondition = Prisma.sql``;
+  if (filter === "favorites") {
+    filterCondition = Prisma.sql`AND b."isFavorite" = true`;
+  } else if (filter === "unsorted") {
+    filterCondition = Prisma.sql`AND NOT EXISTS (
+      SELECT 1 FROM "BookmarkFolder" bf WHERE bf."bookmarkId" = b."id"
+    )`;
+  } else if (filter && filter !== "all") {
+    filterCondition = Prisma.sql`AND EXISTS (
+      SELECT 1 FROM "BookmarkFolder" bf WHERE bf."bookmarkId" = b."id" AND bf."folderId" = ${filter}
+    )`;
+  }
+
+  // Search using tsvector + tag ILIKE
+  const results = await prisma.$queryRaw<
+    Array<{
+      id: string;
+      url: string;
+      title: string | null;
+      description: string | null;
+      image: string | null;
+      favicon: string | null;
+      isFavorite: boolean;
+      visitCount: number;
+      lastVisitedAt: Date | null;
+      createdAt: Date;
+      rank: number;
+    }>
+  >(Prisma.sql`
+    SELECT DISTINCT b."id", b."url", b."title", b."description", b."image",
+           b."favicon", b."isFavorite", b."visitCount", b."lastVisitedAt",
+           b."createdAt",
+           ts_rank(b."search_vector", to_tsquery('english', ${tsquery})) as rank
+    FROM "Bookmark" b
+    LEFT JOIN "BookmarkTag" bt ON bt."bookmarkId" = b."id"
+    LEFT JOIN "Tag" t ON t."id" = bt."tagId"
+    WHERE b."userId" = ${user.id}
+      AND (
+        b."search_vector" @@ to_tsquery('english', ${tsquery})
+        OR t."name" ILIKE ${`%${sanitized}%`}
+      )
+      ${filterCondition}
+    ORDER BY rank DESC, b."createdAt" DESC
+    LIMIT 40
+  `);
+
+  // Fetch tags for the matching bookmarks
+  const bookmarkIds = results.map((r) => r.id);
+  const bookmarkTags =
+    bookmarkIds.length > 0
+      ? await prisma.bookmarkTag.findMany({
+          where: { bookmarkId: { in: bookmarkIds } },
+          include: { tag: { select: { id: true, name: true, color: true } } },
+        })
+      : [];
+
+  const tagsByBookmarkId = new Map<
+    string,
+    Array<{ id: string; name: string; color: string | null }>
+  >();
+  for (const bt of bookmarkTags) {
+    const arr = tagsByBookmarkId.get(bt.bookmarkId) ?? [];
+    arr.push(bt.tag);
+    tagsByBookmarkId.set(bt.bookmarkId, arr);
+  }
+
+  return {
+    bookmarks: results.map((b) => ({
+      id: b.id,
+      url: b.url,
+      title: b.title,
+      description: b.description,
+      image: b.image,
+      favicon: b.favicon,
+      isFavorite: b.isFavorite,
+      visitCount: b.visitCount,
+      lastVisitedAt: b.lastVisitedAt?.toISOString() ?? null,
+      createdAt: b.createdAt.toISOString(),
+      tags: tagsByBookmarkId.get(b.id) ?? [],
+    })),
+    nextCursor: null,
+  };
 }
 
 async function fetchAndUpdateMetadata(bookmarkId: string, url: string) {

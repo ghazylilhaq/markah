@@ -362,8 +362,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 20,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Prisma migration adds tsvector generated column (weighted: title A, description B, url C) with GIN index. searchBookmarks server action uses ts_rank + to_tsquery with prefix matching (:*) plus ILIKE on tag names. SearchBar component with 300ms debounce. DashboardContent wrapper manages search state, replaces bookmark list with search results when active. No results shows helpful message."
     },
     {
       "id": "US-021",

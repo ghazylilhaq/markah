@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { QuickAddWithSuggestions } from "@/components/quick-add-with-suggestions";
-import { BookmarkListView } from "@/components/bookmark-list-view";
+import { DashboardContent } from "@/components/dashboard-content";
 import { getBookmarks } from "@/lib/actions/bookmark";
 import { prisma } from "@/lib/prisma";
 
@@ -63,7 +63,7 @@ export default async function DashboardPage({
 
       <QuickAddWithSuggestions />
 
-      <BookmarkListView
+      <DashboardContent
         initialBookmarks={bookmarks}
         initialCursor={nextCursor}
         filter={filter}

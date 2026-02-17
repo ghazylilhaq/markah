@@ -41,6 +41,8 @@
 - shadcn/ui DropdownMenu component installed and available for context menus.
 - Folder filtering in `getBookmarks`: pass `filter` param ('all' | 'favorites' | 'unsorted' | folder ID). Uses Prisma `folders: { none: {} }` for unsorted, `folders: { some: { folderId } }` for specific folder.
 - Avoid `setState` inside `useEffect` — ESLint `react-hooks/set-state-in-effect` rule. Use event handlers or `useSyncExternalStore` instead.
+- Raw SQL migrations go in `prisma/migrations/YYYYMMDD_description/migration.sql` — applied via `npx prisma migrate deploy`.
+- Use `Prisma.sql` tagged template + `$queryRaw<Type[]>` for type-safe raw PostgreSQL queries (tsvector, aggregations, etc.).
 - Server-side depth enforcement for folder nesting: walk parentId chain to count depth before creating subfolder.
 - Next.js 16 `searchParams` is a Promise — must `await searchParams` in server components.
 
@@ -327,4 +329,24 @@ Started: Tue Feb 17 02:05:07 WIB 2026
   - Next.js 16 `searchParams` in page components is a Promise that must be awaited: `const { folder } = await searchParams`
   - Server-side depth enforcement: walk parentId chain with a while loop to count depth — more reliable than tree traversal from client
   - Folder filtering: `folders: { none: {} }` gives "unsorted" bookmarks (no folder associations), `folders: { some: { folderId } }` filters by specific folder
+---
+
+## 2026-02-17 - US-020
+- What was implemented: Full-text search across bookmarks by title, description, URL, and tag name
+- Files changed:
+  - `prisma/migrations/20260217_add_search_vector/migration.sql` — Raw SQL migration: tsvector generated column (weighted A/B/C for title/description/url) + GIN index
+  - `lib/actions/bookmark.ts` — Added `searchBookmarks` server action using `Prisma.sql` tagged template for raw SQL with tsquery + tag ILIKE, added `Prisma` import from `@prisma/client`
+  - `components/search-bar.tsx` — New client component: search input with 300ms debounce using setTimeout ref, loading spinner, clear button
+  - `components/dashboard-content.tsx` — New client component: wraps SearchBar + BookmarkListView, manages search state, swaps between default and search results views
+  - `app/dashboard/page.tsx` — Replaced direct BookmarkListView with DashboardContent wrapper
+  - `scripts/ralph/prd.json` — Marked US-020 as passes: true
+- **Learnings for future iterations:**
+  - Prisma doesn't support tsvector natively — use raw SQL migration (not `prisma migrate dev` generated)
+  - Migration directory name format: `YYYYMMDD_description` — Prisma picks it up with `migrate deploy`
+  - `Prisma.sql` tagged template literal is type-safe for raw queries — use with `$queryRaw<Type[]>` for typed results
+  - tsvector GENERATED ALWAYS AS ... STORED creates an auto-updating column — no triggers needed
+  - setweight() with 'A'/'B'/'C' gives priority to title > description > url in ranking
+  - For prefix matching in tsquery, append `:*` to each word (e.g., `react:*` matches "react", "reactjs", "reactive")
+  - SearchBar debounce: use `useRef<ReturnType<typeof setTimeout>>` + `useTransition` for loading state — simpler than React Query for this use case
+  - DashboardContent wrapper pattern: parent manages search/default state, passes different props to BookmarkListView with `key` to force remount
 ---
