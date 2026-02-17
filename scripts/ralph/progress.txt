@@ -39,6 +39,10 @@
 - Folder type exported from `components/sidebar.tsx` — import as `type Folder` from `@/components/sidebar`.
 - Folder server actions in `lib/actions/folder.ts` — createFolder, renameFolder, deleteFolder.
 - shadcn/ui DropdownMenu component installed and available for context menus.
+- Folder filtering in `getBookmarks`: pass `filter` param ('all' | 'favorites' | 'unsorted' | folder ID). Uses Prisma `folders: { none: {} }` for unsorted, `folders: { some: { folderId } }` for specific folder.
+- Avoid `setState` inside `useEffect` — ESLint `react-hooks/set-state-in-effect` rule. Use event handlers or `useSyncExternalStore` instead.
+- Server-side depth enforcement for folder nesting: walk parentId chain to count depth before creating subfolder.
+- Next.js 16 `searchParams` is a Promise — must `await searchParams` in server components.
 
 # Ralph Progress Log
 Started: Tue Feb 17 02:05:07 WIB 2026
@@ -306,4 +310,21 @@ Started: Tue Feb 17 02:05:07 WIB 2026
   - Prisma schema `onDelete: Cascade` on Folder self-relation handles child folder deletion automatically — only BookmarkFolder cleanup needed manually
   - DropdownMenu trigger inside a Link needs `onClick: e.preventDefault()` to prevent navigation when clicking the menu button
   - Inline rename/create pattern: show Input on action, commit on Enter/blur, cancel on Escape
+---
+
+## 2026-02-17 - US-019
+- What was implemented: Nested folders with depth limit — collapsible folder tree, subfolder creation, 3-level depth enforcement, folder-based bookmark filtering
+- Files changed:
+  - `components/sidebar.tsx` — Added ChevronRight expand/collapse arrows for folders with children, FolderPlus "New subfolder" option in dropdown menu, subfolder creation with inline input, 3-level depth enforcement (client-side toast error), passed subfolder creation state through FolderItem props
+  - `lib/actions/folder.ts` — Added server-side depth enforcement in createFolder (getFolderDepth walks parentId chain), MAX_FOLDER_DEPTH constant
+  - `lib/actions/bookmark.ts` — Updated getBookmarks to accept optional `filter` param: 'favorites' (isFavorite: true), 'unsorted' (folders: { none: {} }), folder ID (folders: { some: { folderId } }), 'all'/undefined (no filter)
+  - `app/dashboard/page.tsx` — Reads `?folder=` search param via async searchParams, passes filter to getBookmarks, dynamic heading based on filter type, looks up folder name for specific folder filter
+  - `components/bookmark-list-view.tsx` — Accepts optional `filter` prop, passes to getBookmarks on "Load more"
+  - `scripts/ralph/prd.json` — Marked US-019 as passes: true
+- **Learnings for future iterations:**
+  - ESLint `react-hooks/set-state-in-effect` rule is strict — cannot call setState inside useEffect even conditionally. Move state changes to event handlers instead
+  - Prisma where clause typing: use explicit interface instead of conditional spread with inferred types — TypeScript can't infer union types well with spreads
+  - Next.js 16 `searchParams` in page components is a Promise that must be awaited: `const { folder } = await searchParams`
+  - Server-side depth enforcement: walk parentId chain with a while loop to count depth — more reliable than tree traversal from client
+  - Folder filtering: `folders: { none: {} }` gives "unsorted" bookmarks (no folder associations), `folders: { some: { folderId } }` filters by specific folder
 ---

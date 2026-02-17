@@ -12,6 +12,8 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  ChevronRight,
+  FolderPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -52,6 +54,7 @@ export function Sidebar({ folders }: { folders: Folder[] }) {
   const searchParams = useSearchParams();
   const currentFolder = searchParams.get("folder");
   const router = useRouter();
+  const [creatingParentId, setCreatingParentId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const createInputRef = useRef<HTMLInputElement>(null);
@@ -62,18 +65,26 @@ export function Sidebar({ folders }: { folders: Folder[] }) {
     }
   }, [isCreating]);
 
+  function startCreating(parentId?: string) {
+    setCreatingParentId(parentId ?? null);
+    setIsCreating(true);
+    setNewFolderName("");
+  }
+
   async function handleCreateFolder() {
     const name = newFolderName.trim();
     if (!name) {
       setIsCreating(false);
       setNewFolderName("");
+      setCreatingParentId(null);
       return;
     }
 
     try {
-      await createFolder(name);
+      await createFolder(name, creatingParentId ?? undefined);
       setNewFolderName("");
       setIsCreating(false);
+      setCreatingParentId(null);
       router.refresh();
       toast.success(`Folder "${name}" created`);
     } catch {
@@ -115,13 +126,13 @@ export function Sidebar({ folders }: { folders: Folder[] }) {
           variant="ghost"
           size="icon-sm"
           className="h-5 w-5 text-stone-400 hover:text-stone-900"
-          onClick={() => setIsCreating(true)}
+          onClick={() => startCreating()}
         >
           <Plus className="h-3.5 w-3.5" />
         </Button>
       </div>
 
-      {isCreating && (
+      {isCreating && creatingParentId === null && (
         <div className="px-3 py-1">
           <Input
             ref={createInputRef}
@@ -147,6 +158,18 @@ export function Sidebar({ folders }: { folders: Folder[] }) {
           folder={folder}
           currentFolder={currentFolder}
           depth={0}
+          isCreating={isCreating}
+          creatingParentId={creatingParentId}
+          newFolderName={newFolderName}
+          setNewFolderName={setNewFolderName}
+          createInputRef={createInputRef}
+          onCreateFolder={handleCreateFolder}
+          onCancelCreate={() => {
+            setIsCreating(false);
+            setNewFolderName("");
+            setCreatingParentId(null);
+          }}
+          onStartCreateSubfolder={startCreating}
         />
       ))}
 
@@ -157,21 +180,42 @@ export function Sidebar({ folders }: { folders: Folder[] }) {
   );
 }
 
+const MAX_FOLDER_DEPTH = 3; // root(1) > child(2) > grandchild(3)
+
 function FolderItem({
   folder,
   currentFolder,
   depth,
+  isCreating,
+  creatingParentId,
+  newFolderName,
+  setNewFolderName,
+  createInputRef,
+  onCreateFolder,
+  onCancelCreate,
+  onStartCreateSubfolder,
 }: {
   folder: Folder;
   currentFolder: string | null;
   depth: number;
+  isCreating: boolean;
+  creatingParentId: string | null;
+  newFolderName: string;
+  setNewFolderName: (name: string) => void;
+  createInputRef: React.RefObject<HTMLInputElement | null>;
+  onCreateFolder: () => void;
+  onCancelCreate: () => void;
+  onStartCreateSubfolder: (parentId: string) => void;
 }) {
   const isActive = currentFolder === folder.id;
   const router = useRouter();
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameName, setRenameName] = useState(folder.name);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const hasChildren = folder.children.length > 0;
+  const showCreateInput = isCreating && creatingParentId === folder.id;
 
   useEffect(() => {
     if (isRenaming && renameInputRef.current) {
@@ -215,6 +259,17 @@ function FolderItem({
     }
   }
 
+  function handleCreateSubfolder() {
+    // depth is 0-indexed: 0 = root, 1 = child, 2 = grandchild
+    // Max depth is 3 levels, so folders at depth 2 cannot have children
+    if (depth + 1 >= MAX_FOLDER_DEPTH) {
+      toast.error("Maximum folder nesting depth (3 levels) reached");
+      return;
+    }
+    setIsExpanded(true);
+    onStartCreateSubfolder(folder.id);
+  }
+
   if (isRenaming) {
     return (
       <div className="py-1" style={{ paddingLeft: `${12 + depth * 16}px` }}>
@@ -246,14 +301,37 @@ function FolderItem({
             : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
         )}
       >
-        <Link
-          href={`/dashboard?folder=${folder.id}`}
-          className="flex flex-1 items-center gap-3 py-2 text-sm font-medium"
-          style={{ paddingLeft: `${12 + depth * 16}px` }}
-        >
-          <FolderOpen className="h-4 w-4 shrink-0" />
-          <span className="truncate">{folder.name}</span>
-        </Link>
+        <div className="flex flex-1 items-center min-w-0">
+          {/* Expand/collapse toggle */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              if (hasChildren) setIsExpanded(!isExpanded);
+            }}
+            className={cn(
+              "flex shrink-0 items-center justify-center h-6 w-5 ml-1",
+              hasChildren ? "text-stone-400 hover:text-stone-700" : "invisible"
+            )}
+            style={{ marginLeft: `${4 + depth * 16}px` }}
+            tabIndex={-1}
+          >
+            <ChevronRight
+              className={cn(
+                "h-3.5 w-3.5 transition-transform",
+                isExpanded && "rotate-90"
+              )}
+            />
+          </button>
+
+          <Link
+            href={`/dashboard?folder=${folder.id}`}
+            className="flex flex-1 items-center gap-2 py-2 pr-1 text-sm font-medium min-w-0"
+          >
+            <FolderOpen className="h-4 w-4 shrink-0" />
+            <span className="truncate">{folder.name}</span>
+          </Link>
+        </div>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -266,7 +344,13 @@ function FolderItem({
               <MoreHorizontal className="h-3.5 w-3.5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36">
+          <DropdownMenuContent align="end" className="w-44">
+            {depth + 1 < MAX_FOLDER_DEPTH && (
+              <DropdownMenuItem onClick={handleCreateSubfolder}>
+                <FolderPlus className="mr-2 h-3.5 w-3.5" />
+                New subfolder
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={() => {
                 setRenameName(folder.name);
@@ -310,14 +394,42 @@ function FolderItem({
         </AlertDialogContent>
       </AlertDialog>
 
-      {folder.children?.map((child) => (
-        <FolderItem
-          key={child.id}
-          folder={child}
-          currentFolder={currentFolder}
-          depth={depth + 1}
-        />
-      ))}
+      {isExpanded && (
+        <>
+          {showCreateInput && (
+            <div className="py-1" style={{ paddingLeft: `${12 + (depth + 1) * 16}px` }}>
+              <Input
+                ref={createInputRef}
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onCreateFolder();
+                  if (e.key === "Escape") onCancelCreate();
+                }}
+                onBlur={onCreateFolder}
+                placeholder="Subfolder name..."
+                className="h-8 text-sm"
+              />
+            </div>
+          )}
+          {folder.children?.map((child) => (
+            <FolderItem
+              key={child.id}
+              folder={child}
+              currentFolder={currentFolder}
+              depth={depth + 1}
+              isCreating={isCreating}
+              creatingParentId={creatingParentId}
+              newFolderName={newFolderName}
+              setNewFolderName={setNewFolderName}
+              createInputRef={createInputRef}
+              onCreateFolder={onCreateFolder}
+              onCancelCreate={onCancelCreate}
+              onStartCreateSubfolder={onStartCreateSubfolder}
+            />
+          ))}
+        </>
+      )}
     </>
   );
 }

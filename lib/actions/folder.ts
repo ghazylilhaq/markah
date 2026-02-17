@@ -3,8 +3,36 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 
+const MAX_FOLDER_DEPTH = 3;
+
+async function getFolderDepth(
+  folderId: string,
+  userId: string
+): Promise<number> {
+  let depth = 0;
+  let currentId: string | null = folderId;
+  while (currentId) {
+    depth++;
+    const parent: { parentId: string | null } | null =
+      await prisma.folder.findFirst({
+        where: { id: currentId, userId },
+        select: { parentId: true },
+      });
+    currentId = parent?.parentId ?? null;
+  }
+  return depth;
+}
+
 export async function createFolder(name: string, parentId?: string) {
   const user = await requireUser();
+
+  // Enforce max nesting depth
+  if (parentId) {
+    const parentDepth = await getFolderDepth(parentId, user.id);
+    if (parentDepth >= MAX_FOLDER_DEPTH) {
+      throw new Error("Maximum folder nesting depth (3 levels) reached");
+    }
+  }
 
   // Get max position for ordering
   const maxPos = await prisma.folder.aggregate({

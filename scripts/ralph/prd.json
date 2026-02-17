@@ -343,8 +343,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 19,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Collapsible folder tree in sidebar with ChevronRight expand/collapse arrows. Subfolder creation via 'New subfolder' option in three-dot dropdown menu. 3-level depth enforcement on both client (sidebar) and server (createFolder action). Folder-based bookmark filtering: getBookmarks accepts filter param for 'all', 'favorites', 'unsorted', or specific folder ID. Dashboard page reads ?folder= search param for filtering and heading."
     },
     {
       "id": "US-020",

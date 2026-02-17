@@ -34,9 +34,11 @@ function useViewMode(): [ViewMode, (mode: ViewMode) => void] {
 export function BookmarkListView({
   initialBookmarks,
   initialCursor,
+  filter,
 }: {
   initialBookmarks: BookmarkCardData[];
   initialCursor: string | null;
+  filter?: string;
 }) {
   const [viewMode, setViewMode] = useViewMode();
   const [bookmarks, setBookmarks] = useState(initialBookmarks);
@@ -46,7 +48,7 @@ export function BookmarkListView({
   function handleLoadMore() {
     if (!cursor) return;
     startTransition(async () => {
-      const result = await getBookmarks(cursor);
+      const result = await getBookmarks(cursor, 20, filter);
       setBookmarks((prev) => [...prev, ...result.bookmarks]);
       setCursor(result.nextCursor);
     });

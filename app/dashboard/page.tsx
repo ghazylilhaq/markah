@@ -3,23 +3,60 @@ import { getCurrentUser } from "@/lib/session";
 import { QuickAddWithSuggestions } from "@/components/quick-add-with-suggestions";
 import { BookmarkListView } from "@/components/bookmark-list-view";
 import { getBookmarks } from "@/lib/actions/bookmark";
+import { prisma } from "@/lib/prisma";
 
-export default async function DashboardPage() {
+function getFilterLabel(
+  filter: string | undefined,
+  folderName: string | null
+): string {
+  if (!filter || filter === "all") return "All Bookmarks";
+  if (filter === "favorites") return "Favorites";
+  if (filter === "unsorted") return "Unsorted";
+  return folderName ?? "Bookmarks";
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ folder?: string }>;
+}) {
   const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login");
   }
 
-  const { bookmarks, nextCursor } = await getBookmarks();
+  const { folder: filter } = await searchParams;
+
+  // If filtering by a specific folder, look up its name for the heading
+  let folderName: string | null = null;
+  if (filter && !["all", "favorites", "unsorted"].includes(filter)) {
+    const folder = await prisma.folder.findFirst({
+      where: { id: filter, userId: user.id },
+      select: { name: true },
+    });
+    folderName = folder?.name ?? null;
+  }
+
+  const { bookmarks, nextCursor } = await getBookmarks(
+    undefined,
+    20,
+    filter
+  );
+
+  const heading = getFilterLabel(filter, folderName);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-stone-900">All Bookmarks</h1>
+        <h1 className="text-2xl font-bold text-stone-900">{heading}</h1>
         <p className="mt-1 text-sm text-stone-500">
           {bookmarks.length === 0
-            ? "Your bookmarks will appear here."
+            ? filter === "favorites"
+              ? "No favorite bookmarks yet."
+              : filter === "unsorted"
+                ? "No unsorted bookmarks."
+                : "Your bookmarks will appear here."
             : `${bookmarks.length} bookmark${bookmarks.length === 1 ? "" : "s"}`}
         </p>
       </div>
@@ -29,6 +66,7 @@ export default async function DashboardPage() {
       <BookmarkListView
         initialBookmarks={bookmarks}
         initialCursor={nextCursor}
+        filter={filter}
       />
     </div>
   );

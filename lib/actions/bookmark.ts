@@ -56,11 +56,30 @@ export async function toggleFavorite(bookmarkId: string) {
   return { isFavorite: !bookmark.isFavorite };
 }
 
-export async function getBookmarks(cursor?: string, limit: number = 20) {
+export async function getBookmarks(
+  cursor?: string,
+  limit: number = 20,
+  filter?: string
+) {
   const user = await requireUser();
 
+  // Build where clause based on filter
+  const where: {
+    userId: string;
+    isFavorite?: boolean;
+    folders?: { none: Record<string, never> } | { some: { folderId: string } };
+  } = { userId: user.id };
+
+  if (filter === "favorites") {
+    where.isFavorite = true;
+  } else if (filter === "unsorted") {
+    where.folders = { none: {} };
+  } else if (filter && filter !== "all") {
+    where.folders = { some: { folderId: filter } };
+  }
+
   const bookmarks = await prisma.bookmark.findMany({
-    where: { userId: user.id },
+    where,
     orderBy: { createdAt: "desc" },
     take: limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
