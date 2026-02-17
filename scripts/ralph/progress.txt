@@ -45,6 +45,8 @@
 - Use `Prisma.sql` tagged template + `$queryRaw<Type[]>` for type-safe raw PostgreSQL queries (tsvector, aggregations, etc.).
 - Server-side depth enforcement for folder nesting: walk parentId chain to count depth before creating subfolder.
 - Next.js 16 `searchParams` is a Promise — must `await searchParams` in server components.
+- Prisma AND filter for "bookmark must have ALL tags": `AND: tagIds.map(tagId => ({ tags: { some: { tagId } } }))`.
+- DashboardContent manages combined filters (text search + tag IDs + folder). Tag filters available via `getUserTags()` fetched in dashboard page.
 
 # Ralph Progress Log
 Started: Tue Feb 17 02:05:07 WIB 2026
@@ -349,4 +351,22 @@ Started: Tue Feb 17 02:05:07 WIB 2026
   - For prefix matching in tsquery, append `:*` to each word (e.g., `react:*` matches "react", "reactjs", "reactive")
   - SearchBar debounce: use `useRef<ReturnType<typeof setTimeout>>` + `useTransition` for loading state — simpler than React Query for this use case
   - DashboardContent wrapper pattern: parent manages search/default state, passes different props to BookmarkListView with `key` to force remount
+---
+
+## 2026-02-17 - US-021
+- What was implemented: Tag and folder filters on search — clickable tag filter chips below search bar, combined filtering with text search and folder selection
+- Files changed:
+  - `components/tag-filter-bar.tsx` — New component: row of colored tag chips, toggle selection, "Clear all" button, active filter count
+  - `components/dashboard-content.tsx` — Manages combined filter state: text search + tag filters + folder filter. useEffect re-fetches when tags change. Three display modes: search results, tag-filtered, or default
+  - `components/search-bar.tsx` — Added `tagIds` prop, passes to `searchBookmarks`
+  - `components/bookmark-list-view.tsx` — Added `tagIds` prop for "Load more" pagination with tag filters
+  - `lib/actions/bookmark.ts` — `getBookmarks` accepts `tagIds` (Prisma AND clause: `tags.some` per tag). `searchBookmarks` accepts `tagIds` (raw SQL COUNT DISTINCT match)
+  - `app/dashboard/page.tsx` — Fetches `getUserTags()` in parallel with bookmarks, passes `userTags` to DashboardContent
+  - `scripts/ralph/prd.json` — Marked US-021 as passes: true
+- **Learnings for future iterations:**
+  - Prisma AND filter for "must have ALL tags": `AND: tagIds.map(tagId => ({ tags: { some: { tagId } } }))` — each tag gets its own `some` clause
+  - Raw SQL equivalent for AND tag filter: `COUNT(DISTINCT tagId) WHERE tagId = ANY(array) = array.length`
+  - useRef isInitialMount pattern avoids running useEffect on first render when watching state changes
+  - DashboardContent now has three states: searching (text query active), tag-filtered (tags selected, no query), default (no filters)
+  - Tag filter changes trigger re-fetch in useEffect — search results updated for search+tags combo, getBookmarks for tags-only
 ---
