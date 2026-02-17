@@ -242,8 +242,8 @@ export function DashboardShell({
                       Markah
                     </span>
                   </SheetTitle>
-                  <div onClick={() => setOpen(false)}>
-                    <Sidebar folders={folders} />
+                  <div className="overflow-y-auto max-h-[calc(100dvh-4rem)]">
+                    <Sidebar folders={folders} onNavigate={() => setOpen(false)} />
                   </div>
                 </SheetContent>
               </Sheet>

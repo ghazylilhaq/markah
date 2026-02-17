@@ -55,7 +55,7 @@ const virtualFolders = [
   { id: "unsorted", name: "Unsorted", icon: Inbox },
 ] as const;
 
-export function Sidebar({ folders }: { folders: Folder[] }) {
+export function Sidebar({ folders, onNavigate }: { folders: Folder[]; onNavigate?: () => void }) {
   const searchParams = useSearchParams();
   const currentFolder = searchParams.get("folder");
   const router = useRouter();
@@ -110,6 +110,7 @@ export function Sidebar({ folders }: { folders: Folder[] }) {
                 ? "/dashboard"
                 : `/dashboard?folder=${item.id}`
             }
+            onClick={onNavigate}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               isActive
@@ -181,6 +182,7 @@ export function Sidebar({ folders }: { folders: Folder[] }) {
               setCreatingParentId(null);
             }}
             onStartCreateSubfolder={startCreating}
+            onNavigate={onNavigate}
           />
         </div>
       ))}
@@ -246,6 +248,7 @@ function FolderItem({
   onCreateFolder,
   onCancelCreate,
   onStartCreateSubfolder,
+  onNavigate,
 }: {
   folder: Folder;
   currentFolder: string | null;
@@ -258,6 +261,7 @@ function FolderItem({
   onCreateFolder: () => void;
   onCancelCreate: () => void;
   onStartCreateSubfolder: (parentId: string) => void;
+  onNavigate?: () => void;
 }) {
   const isActive = currentFolder === folder.id;
   const router = useRouter();
@@ -417,6 +421,7 @@ function FolderItem({
 
           <Link
             href={`/dashboard?folder=${folder.id}`}
+            onClick={onNavigate}
             className="flex flex-1 items-center gap-2 py-2 pr-1 text-sm font-medium min-w-0"
           >
             <FolderOpen className="h-4 w-4 shrink-0" />
@@ -535,6 +540,7 @@ function FolderItem({
                 onCreateFolder={onCreateFolder}
                 onCancelCreate={onCancelCreate}
                 onStartCreateSubfolder={onStartCreateSubfolder}
+                onNavigate={onNavigate}
               />
             </div>
           ))}
