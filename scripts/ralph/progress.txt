@@ -201,3 +201,16 @@ Started: Tue Feb 17 02:05:07 WIB 2026
   - Cursor-based pagination: `take: limit + 1` to check if there are more, then `slice(0, limit)` for the actual results
   - `useTransition` works well for "Load more" — wraps the server action call and provides `loading` state automatically
 ---
+
+## 2026-02-17 - US-013
+- What was implemented: Visit tracking on bookmark click
+- Files changed:
+  - `lib/actions/bookmark.ts` — Added `recordVisit` server action (increments visitCount, sets lastVisitedAt); added visitCount/lastVisitedAt to getBookmarks response mapping
+  - `components/bookmark-card.tsx` — Added visitCount/lastVisitedAt to BookmarkCardData type; onClick handler fires recordVisit; displays visit count and relative lastVisitedAt time
+  - `components/bookmark-list-item.tsx` — Added onClick handler for recordVisit; displays visit count and relative lastVisitedAt in list view
+  - `scripts/ralph/prd.json` — Marked US-013 as passes: true
+- **Learnings for future iterations:**
+  - `prisma.updateMany` is useful for conditional updates (where + userId check) without needing to fetch first — unlike `update` which only takes `id` in where
+  - Fire-and-forget pattern for visit tracking: `recordVisit(id).catch(() => {})` — don't await, don't block navigation
+  - `formatRelativeTime` helper duplicated in bookmark-card and bookmark-list-item — consider extracting to shared utils if used again
+---

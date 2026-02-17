@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Star, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { toggleFavorite } from "@/lib/actions/bookmark";
+import { toggleFavorite, recordVisit } from "@/lib/actions/bookmark";
 import { useRouter } from "next/navigation";
 
 type Tag = {
@@ -21,6 +21,8 @@ export type BookmarkCardData = {
   image: string | null;
   favicon: string | null;
   isFavorite: boolean;
+  visitCount: number;
+  lastVisitedAt: string | null;
   createdAt: string;
   tags: Tag[];
 };
@@ -62,11 +64,31 @@ function formatDate(dateStr: string): string {
   });
 }
 
+function formatRelativeTime(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const seconds = Math.floor((now - then) / 1000);
+
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
+}
+
 export function BookmarkCard({ bookmark }: { bookmark: BookmarkCardData }) {
   const [isFavorite, setIsFavorite] = useState(bookmark.isFavorite);
   const [toggling, setToggling] = useState(false);
   const router = useRouter();
   const domain = getDomain(bookmark.url);
+
+  function handleVisit() {
+    recordVisit(bookmark.id).catch(() => {});
+  }
 
   async function handleToggleFavorite(e: React.MouseEvent) {
     e.preventDefault();
@@ -94,6 +116,7 @@ export function BookmarkCard({ bookmark }: { bookmark: BookmarkCardData }) {
         href={bookmark.url}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={handleVisit}
         className="relative block h-40 overflow-hidden"
       >
         {bookmark.image ? (
@@ -131,6 +154,7 @@ export function BookmarkCard({ bookmark }: { bookmark: BookmarkCardData }) {
             href={bookmark.url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={handleVisit}
             className="min-w-0 flex-1"
           >
             <h3 className="truncate text-sm font-semibold text-stone-900 hover:underline">
@@ -174,6 +198,20 @@ export function BookmarkCard({ bookmark }: { bookmark: BookmarkCardData }) {
           <span className="truncate">{domain}</span>
           <span className="text-stone-300">·</span>
           <span className="shrink-0">{formatDate(bookmark.createdAt)}</span>
+          {bookmark.visitCount > 0 && (
+            <>
+              <span className="text-stone-300">·</span>
+              <span className="shrink-0">
+                {bookmark.visitCount} {bookmark.visitCount === 1 ? "visit" : "visits"}
+              </span>
+            </>
+          )}
+          {bookmark.lastVisitedAt && (
+            <>
+              <span className="text-stone-300">·</span>
+              <span className="shrink-0">{formatRelativeTime(bookmark.lastVisitedAt)}</span>
+            </>
+          )}
         </div>
 
         {/* Tags */}

@@ -85,11 +85,25 @@ export async function getBookmarks(cursor?: string, limit: number = 20) {
       image: b.image,
       favicon: b.favicon,
       isFavorite: b.isFavorite,
+      visitCount: b.visitCount,
+      lastVisitedAt: b.lastVisitedAt?.toISOString() ?? null,
       createdAt: b.createdAt.toISOString(),
       tags: b.tags.map((bt) => bt.tag),
     })),
     nextCursor,
   };
+}
+
+export async function recordVisit(bookmarkId: string) {
+  const user = await requireUser();
+
+  await prisma.bookmark.updateMany({
+    where: { id: bookmarkId, userId: user.id },
+    data: {
+      visitCount: { increment: 1 },
+      lastVisitedAt: new Date(),
+    },
+  });
 }
 
 async function fetchAndUpdateMetadata(bookmarkId: string, url: string) {

@@ -231,8 +231,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 13,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "recordVisit server action increments visitCount and sets lastVisitedAt. Both BookmarkCard and BookmarkListItem fire recordVisit on click (fire-and-forget). Visit count and relative lastVisitedAt time displayed on cards and list items."
     },
     {
       "id": "US-014",
