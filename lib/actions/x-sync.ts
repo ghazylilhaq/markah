@@ -34,9 +34,47 @@ async function autoTagBookmark(
   }
 }
 
+/**
+ * Normalize a URL for matching purposes:
+ * - Strip protocol (http:// or https://)
+ * - Strip www. prefix
+ * - Strip trailing slash
+ * - Treat twitter.com and x.com as equivalent (normalize to x.com)
+ */
+function normalizeUrl(url: string): string {
+  return url
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/^twitter\.com\//, "x.com/")
+    .replace(/\/$/, "");
+}
+
+/**
+ * Find or create the "X Bookmarks" folder for a user.
+ */
+async function getOrCreateXBookmarksFolder(userId: string): Promise<string> {
+  const existing = await prisma.folder.findFirst({
+    where: { name: "X Bookmarks", userId },
+    select: { id: true },
+  });
+
+  if (existing) {
+    return existing.id;
+  }
+
+  const folder = await prisma.folder.create({
+    data: { name: "X Bookmarks", userId },
+    select: { id: true },
+  });
+
+  return folder.id;
+}
+
 export async function syncXBookmarks(): Promise<{
   success: boolean;
   imported?: number;
+  merged?: number;
   skipped?: number;
   error?: string;
 }> {
@@ -67,7 +105,11 @@ export async function syncXBookmarks(): Promise<{
     sinceId: integration.lastSyncedTweetId ?? undefined,
   });
 
+  // Ensure X Bookmarks folder exists
+  const xFolderId = await getOrCreateXBookmarksFolder(user.id);
+
   let imported = 0;
+  let merged = 0;
   let skipped = 0;
   let mostRecentTweetId: string | null = null;
 
@@ -78,13 +120,34 @@ export async function syncXBookmarks(): Promise<{
     }
 
     // Skip if already imported (dedup by externalId)
-    const existing = await prisma.bookmark.findFirst({
+    const existingByExternalId = await prisma.bookmark.findFirst({
       where: { externalId: xBookmark.tweetId, userId: user.id },
       select: { id: true },
     });
 
-    if (existing) {
+    if (existingByExternalId) {
       skipped++;
+      continue;
+    }
+
+    // Check for URL match with existing bookmarks (merge logic)
+    const normalizedIncoming = normalizeUrl(xBookmark.url);
+    const allUserBookmarks = await prisma.bookmark.findMany({
+      where: { userId: user.id },
+      select: { id: true, url: true },
+    });
+
+    const urlMatch = allUserBookmarks.find(
+      (b) => normalizeUrl(b.url) === normalizedIncoming
+    );
+
+    if (urlMatch) {
+      // Merge: update existing bookmark with X source info, keep existing tags/folders
+      await prisma.bookmark.update({
+        where: { id: urlMatch.id },
+        data: { source: "x", externalId: xBookmark.tweetId },
+      });
+      merged++;
       continue;
     }
 
@@ -105,6 +168,11 @@ export async function syncXBookmarks(): Promise<{
         userId: user.id,
       },
     });
+
+    // Add to X Bookmarks folder
+    await prisma.bookmarkFolder
+      .create({ data: { bookmarkId: bookmark.id, folderId: xFolderId } })
+      .catch(() => {}); // Skip if already in folder
 
     imported++;
 
@@ -131,5 +199,5 @@ export async function syncXBookmarks(): Promise<{
 
   revalidatePath("/dashboard", "layout");
 
-  return { success: true, imported, skipped };
+  return { success: true, imported, merged, skipped };
 }
