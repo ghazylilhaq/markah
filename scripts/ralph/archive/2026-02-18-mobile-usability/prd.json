@@ -1,0 +1,218 @@
+{
+  "project": "Markah",
+  "branchName": "ralph/mobile-usability",
+  "description": "Mobile Usability Overhaul — Make the app fully functional and polished on mobile by fixing hover-only buttons, broken drag-and-drop, unreadable tags, sidebar Sheet bugs, undersized touch targets, and layout issues. Target: iPhone Safari, 375px minimum width.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fix sidebar Sheet scroll and click behavior",
+      "description": "As a mobile user, I want the sidebar Sheet to scroll properly and not close when I interact with folders.",
+      "acceptanceCriteria": [
+        "Sheet sidebar content in dashboard-shell.tsx wrapped in a container with overflow-y-auto and max-h-[calc(100dvh-4rem)]",
+        "Remove the blanket onClick={() => setOpen(false)} wrapper div in dashboard-shell.tsx",
+        "Pass an onNavigate callback prop to Sidebar that calls setOpen(false) — triggered only when user clicks a folder name to navigate",
+        "Clicking folder expand/collapse chevrons does NOT close the Sheet",
+        "Clicking 'New Folder' button does NOT close the Sheet",
+        "Rename input interaction does NOT close the Sheet",
+        "Navigating to a folder (clicking folder name) DOES close the Sheet",
+        "Sheet continues to open from the left side",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "This is foundational — other sidebar work (US-006) depends on Sheet working correctly. The current onClick wrapper at dashboard-shell.tsx line 245 closes Sheet on ANY internal tap."
+    },
+    {
+      "id": "US-002",
+      "title": "Add three-dot overflow menu to bookmark cards (mobile)",
+      "description": "As a mobile user, I want a visible overflow menu on each bookmark card so I can access Share, Edit, Delete, and Move to Folder actions without hover.",
+      "acceptanceCriteria": [
+        "Add a MoreVertical (lucide) icon button to BookmarkCard (bookmark-card.tsx) and BookmarkListItem (bookmark-list-item.tsx)",
+        "Overflow button visible only below md: breakpoint (use md:hidden class). Use min 44x44px touch target (min-h-[44px] min-w-[44px] or equivalent padding)",
+        "Tapping opens a DropdownMenu with items in order: Edit, Move to Folder, Share, Delete (delete in red/destructive style)",
+        "Each dropdown item has a lucide icon and label. Dropdown items have min 44px row height for touch",
+        "Existing hover-reveal individual buttons (Share, Edit, Delete) hidden below md: breakpoint (add hidden md:flex or similar)",
+        "Favorite (star) button remains directly on the card at ALL breakpoints — not moved into overflow",
+        "On desktop (md: and above), no changes — hover-reveal buttons work as before, overflow menu hidden",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Use CSS classes (md:hidden / hidden md:flex) for show/hide — no JS media query needed. The overflow menu includes a 'Move to Folder' item but it won't be functional until US-003."
+    },
+    {
+      "id": "US-003",
+      "title": "Add 'Move to Folder' dialog",
+      "description": "As a mobile user, I want a 'Move to Folder' option so I can organize bookmarks without drag-and-drop.",
+      "acceptanceCriteria": [
+        "Create a MoveToFolderDialog component (new file components/move-to-folder-dialog.tsx)",
+        "Dialog shows an indented folder tree reusing buildFolderTree() output passed from DashboardShell props",
+        "Current folder indicated with a checkmark icon next to the folder name",
+        "Tapping a folder immediately moves the bookmark via existing moveBookmarkToFolder server action, closes dialog",
+        "An 'Unsorted' option at the top removes the bookmark from all folders (call moveBookmarkToFolder with null/undefined folderId, or a removeBookmarkFromFolders action)",
+        "Dialog content scrollable with overflow-y-auto max-h-[60dvh]",
+        "Folder rows have min 44px height for touch targets",
+        "Toast confirmation on successful move (e.g. 'Moved to Work')",
+        "Wire the 'Move to Folder' item in the overflow menu (from US-002) to open this dialog",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Folder list is already available as props in DashboardShell → BookmarkListView → BookmarkCard. Thread it down. Reuse existing moveBookmarkToFolder or addBookmarkToFolder from lib/actions/bookmark.ts. May need a removeBookmarkFromAllFolders action for the 'Unsorted' option."
+    },
+    {
+      "id": "US-004",
+      "title": "Disable drag-and-drop on mobile",
+      "description": "As a mobile user, I should not experience accidental drag gestures since folder assignment is handled via the Move to Folder dialog.",
+      "acceptanceCriteria": [
+        "Create a useMediaQuery hook (e.g. lib/hooks/use-media-query.ts) using window.matchMedia('(min-width: 768px)') with useSyncExternalStore (project convention — no setState in useEffect)",
+        "In dashboard-shell.tsx, use useMediaQuery to conditionally set DndContext sensors: full PointerSensor array above md:, empty array below md:",
+        "Drag overlay and drop indicators do not appear on mobile",
+        "Folder drop zones in sidebar are inactive on mobile (no blue highlight on drag over)",
+        "Desktop drag-and-drop continues to work exactly as before",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "useSyncExternalStore is required by project ESLint rules (no setState in useEffect). The hook will be reused by US-009 (edit dialog full-screen)."
+    },
+    {
+      "id": "US-005",
+      "title": "Improve tag badge readability",
+      "description": "As a user, I want tag badges to be readable on all screen sizes, especially mobile.",
+      "acceptanceCriteria": [
+        "In bookmark-card.tsx: change tag text size from text-[10px] to text-xs (12px)",
+        "In bookmark-list-item.tsx: change tag text size from text-[10px] to text-xs (12px)",
+        "Update tagToColor function (or inline styles): text color lightness to 35% (from 50%), background hex opacity to 30 (from 20), border hex opacity to 50 (from 40)",
+        "Apply same color scheme update in edit-bookmark-dialog.tsx tag badges",
+        "Apply same color scheme update in app/share/[shareId]/page.tsx tag badges",
+        "All tag color combinations should pass WCAG AA 4.5:1 contrast ratio against their tinted background",
+        "If tagToColor is duplicated across files, consider extracting to a shared utility (e.g. lib/utils/tag-color.ts)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "tagToColor generates hsl(h, 55%, 50%) currently. Changing to hsl(h, 55%, 35%) for text with higher-opacity backgrounds should meet WCAG AA. The function appears in bookmark-card.tsx, bookmark-list-item.tsx, edit-bookmark-dialog.tsx, and share page."
+    },
+    {
+      "id": "US-006",
+      "title": "Make folder context menu accessible on mobile",
+      "description": "As a mobile user, I want to access folder actions (Rename, Delete, Share, New Subfolder) without hover.",
+      "acceptanceCriteria": [
+        "In sidebar.tsx, the folder MoreHorizontal button: remove opacity-0 group-hover:opacity-100 on mobile — always visible below md: breakpoint",
+        "On desktop (md: and above), hover-reveal behavior remains unchanged (keep opacity-0 md:opacity-0 md:group-hover:opacity-100 pattern or equivalent)",
+        "Touch target for the trigger is at least 44x44px on mobile (increase padding or min-size, keep icon at h-3.5 w-3.5 visual size)",
+        "Dropdown menu items have min 44px row height for comfortable tapping (increase py padding on DropdownMenuItem)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Similar pattern to US-002 — use CSS breakpoints to conditionally show/hide. The trigger is at sidebar.tsx line ~432."
+    },
+    {
+      "id": "US-007",
+      "title": "Increase touch targets across the app",
+      "description": "As a mobile user, I want all interactive elements to be easy to tap accurately (minimum 44x44px).",
+      "acceptanceCriteria": [
+        "Tag filter bar (tag-filter-bar.tsx): make container horizontal-scrolling (overflow-x-auto whitespace-nowrap), add CSS mask-image fade on edges, increase button height to min 44px (add more vertical padding)",
+        "Search bar clear button (search-bar.tsx): increase from h-6 w-6 to min 44x44px tap area using padding (can keep visual icon size small)",
+        "View toggle buttons in bookmark-list-view.tsx: increase from size-8 to min 44x44px on mobile",
+        "Favorite star button on bookmark-card.tsx and bookmark-list-item.tsx: increase from p-0.5 to min 44x44px tap area",
+        "Edit dialog tag remove X button (edit-bookmark-dialog.tsx): increase from p-0.5 h-3 w-3 to min 44x44px tap area",
+        "Use invisible padding technique where possible (larger tap area, same visual icon size) to avoid layout bloat",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Many small changes across files. Use min-h-[44px] min-w-[44px] with centered content, or increase padding. The tag filter horizontal scroll replaces the current wrapping layout."
+    },
+    {
+      "id": "US-008",
+      "title": "Reduce mobile padding and spacing",
+      "description": "As a mobile user, I want screen space used efficiently without excessive padding.",
+      "acceptanceCriteria": [
+        "Main content area in dashboard-shell.tsx: change p-6 to p-3 md:p-6",
+        "Landing page hero (app/page.tsx): change pt-24 to pt-12 md:pt-24",
+        "Landing page feature grid (app/page.tsx): change py-20 to py-10 md:py-20",
+        "Share page breadcrumb (app/share/[shareId]/page.tsx): add truncate and max-w-[200px] to folder name span",
+        "Verify 4-5 bookmark cards visible per screen on 375x667px viewport",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "Quick wins — just Tailwind class changes. Low risk."
+    },
+    {
+      "id": "US-009",
+      "title": "Show metadata in list view on mobile",
+      "description": "As a mobile user viewing bookmarks in list mode, I want to see the domain and some tags, not just the title.",
+      "acceptanceCriteria": [
+        "Both grid and list view remain available on mobile (keep the view toggle)",
+        "In bookmark-list-item.tsx: domain visible on mobile — remove hidden sm:inline, show below title in stacked layout on small screens",
+        "Tags visible on mobile: remove hidden md:flex, show 1-2 tags below domain with +N more truncation for excess",
+        "Below sm: breakpoint, list item layout stacks vertically: title on first line, domain + tags on second line",
+        "Above sm:, layout reverts to current horizontal row (no change to desktop)",
+        "Visit count and date remain hidden on mobile (hidden lg:inline unchanged)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "The list item needs a responsive layout change — flexbox column below sm:, row above. Keep the overflow menu (US-002) working in both layouts."
+    },
+    {
+      "id": "US-010",
+      "title": "Make Quick Add Bar sticky and mobile-friendly",
+      "description": "As a mobile user, I want the quick-add form always accessible and usable on narrow screens.",
+      "acceptanceCriteria": [
+        "Quick Add Bar is sticky at the top of the content area (sticky top-0 z-10 with background color to prevent content showing through)",
+        "Button shows only the + icon below sm: breakpoint (hide 'Save' / 'Saving...' text with hidden sm:inline on the text span)",
+        "Input field retains adequate width on 375px screens (minimum ~250px usable input)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "The QuickAddBar is in components/quick-add-bar.tsx. Actually QuickAddWithSuggestions wraps it — make sure sticky applies at the right level."
+    },
+    {
+      "id": "US-011",
+      "title": "Make edit dialog full-screen on mobile",
+      "description": "As a mobile user, I want the edit dialog to use the full screen so form fields are spacious and unaffected by the on-screen keyboard.",
+      "acceptanceCriteria": [
+        "Below md: breakpoint, edit-bookmark-dialog.tsx DialogContent renders full-screen (max-w-full h-full max-h-full rounded-none or equivalent responsive classes)",
+        "Close button (X) clearly visible in top-right corner on mobile",
+        "Form content scrollable within the full-screen dialog",
+        "Above md:, dialog remains the current centered modal (sm:max-w-lg)",
+        "Replace max-h-[85vh] with max-h-[85dvh] for the desktop variant (iOS keyboard fix)",
+        "Tag suggestion dropdown rendered inside the scrollable area (not clipped off-screen)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "Can use responsive Tailwind classes on DialogContent: max-h-dvh md:max-h-[85dvh] w-full md:max-w-lg rounded-none md:rounded-lg. May need to use the useMediaQuery hook from US-004 if CSS-only approach doesn't work with shadcn Dialog."
+    },
+    {
+      "id": "US-012",
+      "title": "Add loading spinner for bookmark list",
+      "description": "As a mobile user on a slower connection, I want clear feedback that content is loading.",
+      "acceptanceCriteria": [
+        "Show a centered Loader2 spinner (from lucide, with animate-spin) when bookmarks are loading in BookmarkListView or DashboardContent",
+        "Spinner appears in the main content area below the Quick Add Bar",
+        "Spinner shown during initial load and when switching filters/folders",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": true,
+      "notes": "Small change. Use the existing Loader2 icon from lucide-react that's already used elsewhere in the codebase."
+    }
+  ]
+}

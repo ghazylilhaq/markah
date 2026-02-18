@@ -1,0 +1,183 @@
+# Ralph Progress Log
+Started: Tue Feb 17 21:14:50 WIB 2026
+---
+
+## Codebase Patterns
+- Folder context menu: use `opacity-100 md:opacity-0 md:group-hover:opacity-100` to make always-visible on mobile, hover-reveal on desktop
+- Sidebar component accepts optional `onNavigate` callback prop — use it to close mobile Sheet on navigation
+- Mobile Sheet scroll: wrap content in `overflow-y-auto max-h-[calc(100dvh-4rem)]`
+- Use `onClick={onNavigate}` on Link components for navigation-triggered side effects (not on wrapper divs)
+- Mobile overflow menu pattern: `md:hidden` on DropdownMenu trigger + `hidden md:inline-flex` on hover-reveal buttons
+- Touch targets: use `min-h-[44px] min-w-[44px]` with flex centering for 44px tap areas
+- Folders prop threading: DashboardPage fetches folders → DashboardContent → BookmarkListView → BookmarkCard/ListItem
+- `getBookmarkDetails()` returns `folderIds` — use it to show current folder state in dialogs
+- `moveBookmarkToFolder` replaces all folder associations; `removeBookmarkFromAllFolders` clears them
+- `useMediaQuery` hook at `lib/hooks/use-media-query.ts` — uses `useSyncExternalStore`, returns false on server
+- Disable DnD on mobile: `useSensors()` with no args returns empty sensors array; pass conditionally to DndContext
+- Tag color utility at `lib/utils/tag-color.ts` — `tagToColor()` for text color, `tagBadgeStyle()` for full badge inline styles
+- Touch target pattern: `min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0` for invisible padding on mobile, compact on desktop
+- Horizontal scroll container: `overflow-x-auto whitespace-nowrap` with CSS `mask-image` gradient for edge fade
+- Responsive padding: `p-3 md:p-6` pattern for mobile-first reduced spacing
+- Responsive stacked layout: `flex flex-col sm:flex-row sm:items-center` with `sm:contents` on wrapper divs to dissolve at larger breakpoints
+- Sticky bar in padded container: use `-mx-3 px-3 md:-mx-6 md:px-6` negative margins to extend edge-to-edge within `p-3 md:p-6` parent
+- Full-screen mobile dialog: override DialogContent with `h-dvh max-h-dvh w-full max-w-full rounded-none top-0 left-0 translate-x-0 translate-y-0` + `md:h-auto md:max-h-[85dvh] md:max-w-lg md:rounded-lg md:top-[50%] md:left-[50%] md:translate-x-[-50%] md:translate-y-[-50%]`
+- Scrollable dialog body: `flex flex-col` on DialogContent + `flex-1 min-h-0 overflow-y-auto` on content area
+
+---
+
+## 2026-02-17 - US-012
+- Added centered Loader2 spinner in DashboardContent that shows during tag filter and search transitions
+- Spinner uses `useTransition` `isPending` state (was previously unused `[, startTransition]`)
+- Spinner appears in the main content area below Quick Add Bar and search/tag filter bars
+- Shows during tag filter changes and search result fetching
+- Files changed: `components/dashboard-content.tsx`
+- **Learnings for future iterations:**
+  - `useTransition` `isPending` is the cleanest way to show loading state for async filter operations
+  - Initial load and folder switches are server-rendered (SSR), so no client-side spinner needed for those
+  - Spinner replaces the bookmark list during loading (conditional render), not overlay — simpler and avoids layout shift
+---
+
+## 2026-02-17 - US-011
+- Made edit dialog full-screen on mobile using CSS-only approach (no JS media query needed)
+- Mobile: `h-dvh max-h-dvh w-full max-w-full rounded-none top-0 left-0 translate-x-0 translate-y-0`
+- Desktop (md:+): `md:h-auto md:max-h-[85dvh] md:max-w-lg md:rounded-lg md:top-[50%] md:left-[50%] md:translate-x-[-50%] md:translate-y-[-50%]`
+- Changed `max-h-[85vh]` to `md:max-h-[85dvh]` for iOS keyboard fix
+- Form content scrollable via `overflow-y-auto flex-1 min-h-0` on the content div
+- Dialog uses `flex flex-col` so header/footer stay fixed while content scrolls
+- Tag suggestion dropdown renders inside the scrollable area (not clipped)
+- Close button (X) visible via base DialogContent absolute positioning
+- Files changed: `components/edit-bookmark-dialog.tsx`
+- **Learnings for future iterations:**
+  - Full-screen mobile dialog: override base DialogContent positioning with `top-0 left-0 translate-x-0 translate-y-0 h-dvh` and reset on desktop with `md:top-[50%] md:left-[50%] md:translate-x-[-50%] md:translate-y-[-50%] md:h-auto`
+  - CSS-only approach works for shadcn Dialog full-screen — no need for useMediaQuery hook
+  - `flex flex-col` on DialogContent + `flex-1 min-h-0 overflow-y-auto` on content area creates fixed header/footer with scrollable body
+  - Use `dvh` units instead of `vh` for mobile to account for iOS on-screen keyboard
+---
+
+## 2026-02-17 - US-010
+- Made Quick Add Bar sticky at top of content area with `sticky top-0 z-10` and matching `bg-stone-50` background
+- Used negative margins (`-mx-3 md:-mx-6`) with compensating padding to extend sticky bar edge-to-edge within padded main area
+- Button text ("Save"/"Saving...") hidden below `sm:` breakpoint using `hidden sm:inline`, showing only + icon on mobile
+- Icon margin (`mr-1.5`) made responsive (`sm:mr-1.5`) so icon centers properly when text is hidden
+- Files changed: `components/quick-add-bar.tsx`, `app/dashboard/page.tsx`
+- **Learnings for future iterations:**
+  - Sticky elements inside padded containers need negative margin + compensating padding to avoid visual gaps at edges
+  - `QuickAddWithSuggestions` is a thin wrapper around `QuickAddBar` — sticky wrapper goes in the page, not the component
+  - Button icon-only mode: remove margin from icon (`sm:mr-1.5`) and wrap text in `hidden sm:inline` span
+---
+
+## 2026-02-17 - US-009
+- Made list item layout responsive: stacked (title on first line, domain + tags on second) below `sm:`, horizontal row above `sm:`
+- Domain now visible on mobile — removed `hidden sm:inline`, shown in stacked layout
+- Tags visible on mobile: show 2 tags with +N truncation below `sm:`, 3 tags on `md:+` (desktop)
+- Used `sm:contents` on the domain+tags wrapper so it dissolves into the parent flex row on larger screens
+- Dot separator (`·`) between domain and tags on mobile only (`sm:hidden`)
+- Visit count and date remain hidden on mobile (`hidden lg:inline` unchanged)
+- Overflow menu (US-002) continues to work in both layouts
+- Files changed: `components/bookmark-list-item.tsx`
+- **Learnings for future iterations:**
+  - `sm:contents` is useful for responsive layouts where a wrapper div should "disappear" at larger breakpoints
+  - Stacked mobile list items: use `flex flex-col sm:flex-row sm:items-center` on the content area
+  - Show fewer items on mobile (2 tags) vs desktop (3 tags) to conserve horizontal space
+---
+
+## 2026-02-17 - US-008
+- Reduced main content padding from `p-6` to `p-3 md:p-6` in dashboard-shell.tsx
+- Reduced landing page hero padding from `pt-24` to `pt-12 md:pt-24` in app/page.tsx
+- Reduced landing page feature grid padding from `py-20` to `py-10 md:py-20` in app/page.tsx
+- Added `max-w-[200px] truncate` to folder name breadcrumb span in share page
+- Files changed: `components/dashboard-shell.tsx`, `app/page.tsx`, `app/share/[shareId]/page.tsx`
+- **Learnings for future iterations:**
+  - Responsive padding pattern: `p-3 md:p-6` — mobile-first smaller value, desktop breakpoint restores original
+  - Share page breadcrumb truncation uses inline `max-w-[200px]` — adjust if longer folder names are common
+---
+
+## 2026-02-17 - US-007
+- Tag filter bar: changed from flex-wrap to horizontal scroll (`overflow-x-auto whitespace-nowrap`) with CSS mask-image edge fade, increased button height to min 44px on mobile
+- Search bar clear button: increased to 44x44px touch area on mobile with `min-h-[44px] min-w-[44px] md:h-6 md:w-6 md:min-h-0 md:min-w-0`
+- View toggle buttons (grid/list): added 44px min touch target on mobile, reset on desktop
+- Favorite star button on bookmark-card.tsx and bookmark-list-item.tsx: increased to 44x44px with flex centering, reset on desktop
+- Edit dialog tag remove X button: increased to 44x44px on mobile with flex centering
+- All use invisible padding technique — larger tap area, same visual icon size
+- Files changed: `components/tag-filter-bar.tsx`, `components/search-bar.tsx`, `components/bookmark-list-view.tsx`, `components/bookmark-card.tsx`, `components/bookmark-list-item.tsx`, `components/edit-bookmark-dialog.tsx`
+- **Learnings for future iterations:**
+  - Use `md:min-h-0 md:min-w-0` to reset 44px touch targets on desktop — avoids bloating desktop layout
+  - CSS `mask-image` with `WebkitMaskImage` needed for Safari support on horizontal scroll fade
+  - The invisible padding approach (min-h/min-w + flex centering) is cleanest for touch targets without visual changes
+---
+
+## 2026-02-17 - US-006
+- Made folder MoreHorizontal button always visible on mobile (opacity-100), hover-reveal on desktop (md:opacity-0 md:group-hover:opacity-100)
+- Increased touch target on trigger button to 44x44px on mobile via min-h/min-w, reset on desktop
+- Added min-h-[44px] md:min-h-0 to all DropdownMenuItem items for comfortable tapping on mobile
+- Files changed: `components/sidebar.tsx`
+- **Learnings for future iterations:**
+  - Same mobile-visibility pattern used in bookmark overflow (US-002) works for folder context menu: `opacity-100 md:opacity-0 md:group-hover:opacity-100`
+  - Use `md:min-h-0` to reset touch target overrides on desktop so dropdown items stay compact
+---
+
+## 2026-02-17 - US-005
+- Extracted duplicated `tagToColor` and `hashCode` functions into shared utility at `lib/utils/tag-color.ts`
+- Created `tagBadgeStyle()` helper that returns complete inline style object for tag badges
+- Changed tag text lightness from 50% to 35% for WCAG AA contrast compliance
+- Increased background opacity from `20` to `30` and border opacity from `40` to `50`
+- Updated tag text size from `text-[10px]` to `text-xs` (12px) in bookmark-card.tsx, bookmark-list-item.tsx, and share page grid cards
+- Files changed: `lib/utils/tag-color.ts` (new), `components/bookmark-card.tsx`, `components/bookmark-list-item.tsx`, `components/edit-bookmark-dialog.tsx`, `app/share/[shareId]/page.tsx`
+- **Learnings for future iterations:**
+  - When extracting shared utilities, check if each file still needs individual imports (e.g., edit dialog needs `tagToColor` for suggestion color dots, not just `tagBadgeStyle`)
+  - Share page is a server component — imports from `lib/utils/tag-color.ts` work fine since it has no `"use client"` directive
+  - The `hashCode` function is still needed locally in files that use `domainToColor` (bookmark-card.tsx, share page)
+---
+
+## 2026-02-17 - US-004
+- Created `useMediaQuery` hook at `lib/hooks/use-media-query.ts` using `useSyncExternalStore` (project convention — no setState in useEffect)
+- Hook uses `window.matchMedia` with change event listener, returns `false` on server for SSR safety
+- In `dashboard-shell.tsx`, added `isDesktop = useMediaQuery("(min-width: 768px)")`
+- Created two sensor configs: `desktopSensors` (PointerSensor with distance: 8) and `noSensors` (empty)
+- DndContext receives `isDesktop ? desktopSensors : noSensors` — mobile gets no sensors, preventing all drag gestures
+- DragOverlay and drop indicators naturally don't appear since no drag can start without sensors
+- Files changed: `lib/hooks/use-media-query.ts` (new), `components/dashboard-shell.tsx`
+- **Learnings for future iterations:**
+  - `useSensors()` with no arguments returns an empty array — valid way to disable DnD
+  - The `useMediaQuery` hook is reusable for any responsive behavior (US-009 will need it for full-screen edit dialog)
+  - Server snapshot returns `false` — mobile-first default is safe for SSR
+---
+
+## 2026-02-17 - US-003
+- Created `MoveToFolderDialog` component (`components/move-to-folder-dialog.tsx`) with indented folder tree, checkmark on current folder, and "Unsorted" option
+- Added `moveBookmarkToFolder` server action (replaces all folder associations with one) and `removeBookmarkFromAllFolders` action in `lib/actions/bookmark.ts`
+- Fetched folder tree in `app/dashboard/page.tsx` and threaded through `DashboardContent` → `BookmarkListView` → `BookmarkCard`/`BookmarkListItem`
+- Wired "Move to Folder" overflow menu item (from US-002) to open the dialog in both card and list views
+- Dialog loads current folder IDs via `getBookmarkDetails()` on open, shows checkmark for active folder
+- All folder rows are 44px min-height for touch targets, dialog content scrollable with `max-h-[60dvh]`
+- Files changed: `lib/actions/bookmark.ts`, `components/move-to-folder-dialog.tsx` (new), `app/dashboard/page.tsx`, `components/dashboard-content.tsx`, `components/bookmark-list-view.tsx`, `components/bookmark-card.tsx`, `components/bookmark-list-item.tsx`
+- **Learnings for future iterations:**
+  - `buildFolderTree()` is duplicated in layout.tsx and page.tsx — could be extracted to a shared utility if more places need it
+  - The children slot pattern means DashboardShell's folders don't flow to page content — must fetch separately in page.tsx
+  - Dialog fetches current folder state on open via server action, keeping BookmarkCardData lean
+---
+
+## 2026-02-17 - US-002
+- Added MoreVertical three-dot overflow menu to BookmarkCard and BookmarkListItem, visible only below md: breakpoint
+- Menu items: Edit, Move to Folder (placeholder for US-003), Share, Delete (destructive red style)
+- All dropdown items have min-h-[44px] for touch targets; trigger button is 44x44px
+- Existing hover-reveal buttons (Share, Edit, Delete) hidden below md: using `hidden md:inline-flex`
+- Favorite star button remains always visible at all breakpoints
+- Files changed: `components/bookmark-card.tsx`, `components/bookmark-list-item.tsx`
+- **Learnings for future iterations:**
+  - DropdownMenu from shadcn/ui works well for mobile overflow — use `align="end"` to prevent off-screen rendering
+  - Pattern: `md:hidden` on overflow trigger + `hidden md:inline-flex` on individual buttons cleanly separates mobile/desktop
+  - "Move to Folder" menu item is a placeholder — US-003 will wire it to a dialog
+---
+
+## 2026-02-17 - US-001
+- Removed blanket `onClick={() => setOpen(false)}` wrapper div in dashboard-shell.tsx
+- Added `onNavigate` optional prop to `Sidebar` component, threaded through to `FolderItem` and recursive children
+- `onNavigate` called on virtual folder links (All/Favorites/Unsorted) and folder name links only
+- Chevron expand/collapse, New Folder button, and rename input do NOT trigger onNavigate
+- Wrapped Sheet sidebar content in scrollable container: `overflow-y-auto max-h-[calc(100dvh-4rem)]`
+- Files changed: `components/dashboard-shell.tsx`, `components/sidebar.tsx`
+- **Learnings for future iterations:**
+  - The Sidebar component is used both in desktop aside and mobile Sheet — the `onNavigate` prop is optional so desktop sidebar is unaffected
+  - FolderItem is recursive — any new prop must be threaded through the recursive call too
+---
