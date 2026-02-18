@@ -136,7 +136,7 @@
         "Typecheck passes"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "Merged bookmarks keep their existing folder associations — don't move them into X Bookmarks folder. Only new imports go into X Bookmarks. The folder is created once and reused for subsequent syncs (find by name + userId)."
     },
     {
@@ -153,7 +153,7 @@
         "Typecheck passes"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": ".env.example is gitignored by .env* pattern — must use git add -f. Check existing .env.example format for consistency."
     },
     {

@@ -1,3 +1,29 @@
+## 2026-02-18 - US-008
+- Added X integration env vars to `.env.example`: X_CLIENT_ID, X_CLIENT_SECRET, X_REDIRECT_URI, CRON_SECRET, MAX_SYNC_BOOKMARKS
+- Added comment block directing users to https://developer.x.com to create an X Developer App
+- Included the redirect URI format: http://localhost:3000/api/auth/x/callback
+- Used `git add -f .env.example` since .env* is gitignored
+- Files changed: `.env.example`
+- **Learnings for future iterations:**
+  - `.env.example` is gitignored by `.env*` pattern — always use `git add -f .env.example` to stage it
+  - This pattern is already documented in the Codebase Patterns section of progress.txt
+---
+
+## 2026-02-18 - US-007
+- Added `normalizeUrl()` helper: strips protocol, www., trailing slash; treats twitter.com and x.com as equivalent
+- Added `getOrCreateXBookmarksFolder()` helper: finds by name+userId or creates new folder
+- Before creating a new bookmark, now fetches all user bookmarks and checks for URL match (normalized comparison)
+- URL match found: updates existing bookmark with `source: 'x'` and `externalId`, counts as `merged` (keeps existing tags/folders)
+- No URL match: creates new bookmark and adds to X Bookmarks folder via `BookmarkFolder` join table
+- Updated return type to `{ success, imported, merged, skipped }`
+- Files changed: `lib/actions/x-sync.ts`
+- **Learnings for future iterations:**
+  - URL normalization: chain `.replace()` calls for protocol, www, domain equivalence (twitter.com↔x.com), trailing slash
+  - Folder find-or-create pattern: `findFirst` then `create` — safe since user-specific (no race condition concern in single-user sync)
+  - `BookmarkFolder.create().catch(() => {})` safely handles the edge case where join already exists
+  - The URL match check fetches all user bookmarks per bookmark processed — acceptable for typical users (<1000 bookmarks); could be optimized with a Map if scale is a concern
+---
+
 ## Codebase Patterns
 - Database: Supabase PostgreSQL is remote — `prisma migrate dev` requires DB connection; create migrations manually in `prisma/migrations/YYYYMMDD_description/migration.sql` and apply with `npx prisma migrate deploy`
 - After schema changes: always run `npx prisma generate` (no DB needed) to update the Prisma client
