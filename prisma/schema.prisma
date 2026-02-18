@@ -15,9 +15,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  bookmarks Bookmark[]
-  folders   Folder[]
-  tags      Tag[]
+  bookmarks     Bookmark[]
+  folders       Folder[]
+  tags          Tag[]
+  xIntegration  XIntegration?
 }
 
 model Bookmark {
@@ -33,6 +34,8 @@ model Bookmark {
   visitCount    Int       @default(0)
   lastVisitedAt DateTime?
   position      Int       @default(0)
+  source        String?
+  externalId    String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -41,6 +44,8 @@ model Bookmark {
 
   tags    BookmarkTag[]
   folders BookmarkFolder[]
+
+  @@unique([externalId, userId])
 }
 
 model Folder {
@@ -91,4 +96,22 @@ model BookmarkFolder {
   folder     Folder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
 
   @@id([bookmarkId, folderId])
+}
+
+model XIntegration {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  xUserId            String
+  xHandle            String
+  accessToken        String
+  refreshToken       String
+  expiresAt          DateTime
+  lastSyncedAt       DateTime?
+  lastSyncedTweetId  String?
+  syncEnabled        Boolean   @default(true)
+  retryCount         Int       @default(0)
+  lastError          String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 }
