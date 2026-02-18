@@ -1,3 +1,24 @@
+## 2026-02-18 - US-013
+- Added optional `source` parameter to `getBookmarks` (Prisma `where.source` = 'x' or `null`) and `searchBookmarks` (raw SQL `AND b."source" = 'x'` or `AND b."source" IS NULL`)
+- Created `components/source-filter-bar.tsx` — segmented button group with 'All Sources', 'Manual', '𝕏' options
+- Updated `components/dashboard-content.tsx`:
+  - Added `selectedSource` state (initialized from `initialSource` prop)
+  - Source changes update URL via `useRouter`/`useSearchParams` (`?source=x` or `?source=manual`, deleted when 'all')
+  - Combined source + tag filters in re-fetch `useEffect`
+  - Passes `source` through to `BookmarkListView`, `SearchBar`, and fetch calls
+- Updated `components/search-bar.tsx` to accept and pass `source` to `searchBookmarks`
+- Updated `components/bookmark-list-view.tsx` to accept `source` prop and pass to `getBookmarks` for load-more
+- Updated `app/dashboard/page.tsx` to read `source` from searchParams, validate it, pass to `getBookmarks` and `DashboardContent`
+- Files changed: `lib/actions/bookmark.ts`, `components/dashboard-content.tsx`, `components/source-filter-bar.tsx`, `components/bookmark-list-view.tsx`, `components/search-bar.tsx`, `app/dashboard/page.tsx`
+- Typecheck and lint pass
+- **Learnings for future iterations:**
+  - Source filter on nullable Prisma field: use `where.source = null` for manual (Prisma treats null as IS NULL in WHERE), `where.source = 'x'` for X imports
+  - URL param + client state pattern: initialize state from prop (server-provided), update URL on change via `useRouter.push` with `{ scroll: false }`; `useSearchParams()` needed to preserve other existing params when adding/removing `source`
+  - Combined filter re-fetch: a single `useEffect` on `[selectedTagIds, selectedSource]` handles both — clear filtered results when neither filter is active, fetch with combined filters otherwise
+  - `DashboardContent` uses `useSearchParams()` — requires it to be wrapped in a `Suspense` boundary at the page level (Next.js App Router requirement); page.tsx already uses `async` component, no extra Suspense needed since the page itself is server-rendered
+
+---
+
 ## 2026-02-18 - US-012
 - Added `source: string | null` field to `BookmarkCardData` type in `components/bookmark-card.tsx`
 - Updated `getBookmarks` in `lib/actions/bookmark.ts` to include `source` in the returned bookmark objects
