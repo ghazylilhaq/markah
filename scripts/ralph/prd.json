@@ -210,7 +210,7 @@
         "Typecheck passes"
       ],
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "notes": "The lastSyncedTweetId resume mechanism from US-006 already handles incremental sync. This story adds the retry counting and auto-disable logic on top. The settings page error UI was already built in US-009."
     },
     {
@@ -229,7 +229,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "notes": "The source field was added to the Bookmark model in US-001. Make sure the bookmark query in getBookmarks includes source in its select clause. Use a simple text '𝕏' character rather than importing an SVG to keep it minimal."
     },
     {

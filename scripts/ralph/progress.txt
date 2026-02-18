@@ -1,3 +1,35 @@
+## 2026-02-18 - US-012
+- Added `source: string | null` field to `BookmarkCardData` type in `components/bookmark-card.tsx`
+- Updated `getBookmarks` in `lib/actions/bookmark.ts` to include `source` in the returned bookmark objects
+- Updated `searchBookmarks` raw SQL query to SELECT `b."source"`, added it to the result type, and included it in the return map
+- Added X badge (𝕏 character) to `bookmark-card.tsx` domain area — inline `<a>` link that opens the bookmark URL on X in a new tab, only renders when `bookmark.source === 'x'`
+- Added X badge to `bookmark-list-item.tsx` — same pattern, placed after the domain span in the metadata row
+- Badge is styled as `shrink-0 text-xs font-bold text-stone-400 hover:text-stone-600` — subtle muted indicator consistent with the rest of the domain/metadata row
+- Typecheck passes
+- **Learnings for future iterations:**
+  - The `BookmarkCardData` type in `bookmark-card.tsx` is imported by `bookmark-list-item.tsx` — adding a field here propagates to both components automatically
+  - For raw SQL queries in `searchBookmarks`, the result type array and the SELECT clause must be kept in sync manually
+  - The 𝕏 character (U+1D54F) renders as the double-struck X glyph used for the X brand — no SVG needed
+
+---
+
+## 2026-02-18 - US-011
+- Wrapped the fetch+import loop in `performXSync` (lib/services/x-sync-core.ts) in try/catch
+- Added incremental progress saving: after each successfully processed bookmark, persist `lastSyncedTweetId` to DB so partial syncs can resume from the correct position
+- On failure: increment `retryCount` via `{ increment: 1 }`, set `lastError` to error message, save partial progress (lastSyncedAt + lastSyncedTweetId if any)
+- Return partial success (`{ success: true, imported, merged, skipped, error }`) if any bookmarks were imported before failure, else `{ success: false, error }`
+- On full success: reset `retryCount: 0` and `lastError: null` alongside updating lastSyncedAt
+- In cron route: after `performXSync` returns failure, re-fetch integration to get updated `retryCount`; if >= 3, set `syncEnabled: false` with "paused after 3 failures" message
+- For unhandled exceptions in cron, manually increment retryCount and check >= 3 threshold
+- Files changed: `lib/services/x-sync-core.ts`, `app/api/cron/sync-x/route.ts`
+- **Learnings for future iterations:**
+  - Incremental progress: update `lastSyncedTweetId` inside the loop (not just at the end) to ensure resume from last successful item
+  - Prisma `{ increment: 1 }` operator works for atomic increments without a read-modify-write cycle
+  - After `performXSync` increments retryCount internally, cron must re-fetch to get the new value (not use stale in-memory value)
+  - Partial success pattern: return `success: true` with `error` field populated — allows callers to show a warning without treating it as complete failure
+
+---
+
 ## 2026-02-18 - US-010
 - Extracted core sync logic from `syncXBookmarks` server action into `lib/services/x-sync-core.ts` as `performXSync(userId: string)`
 - `syncXBookmarks` server action now delegates to `performXSync` after resolving the userId via `requireUser()`
