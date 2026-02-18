@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useCallback, useEffect, useTransition, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { SearchBar } from "@/components/search-bar";
 import { BookmarkListView } from "@/components/bookmark-list-view";
 import { TagFilterBar, type TagForFilter } from "@/components/tag-filter-bar";
+import { SourceFilterBar } from "@/components/source-filter-bar";
 import { searchBookmarks, getBookmarks } from "@/lib/actions/bookmark";
 import type { BookmarkCardData } from "@/components/bookmark-card";
 import type { Folder } from "@/components/sidebar";
@@ -13,20 +15,25 @@ export function DashboardContent({
   initialBookmarks,
   initialCursor,
   filter,
+  initialSource,
   userTags,
   folders,
 }: {
   initialBookmarks: BookmarkCardData[];
   initialCursor: string | null;
   filter?: string;
+  initialSource?: string;
   userTags: TagForFilter[];
   folders?: Folder[];
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [searchResults, setSearchResults] = useState<BookmarkCardData[] | null>(
     null
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [selectedSource, setSelectedSource] = useState<string>(initialSource ?? "all");
   const [filteredBookmarks, setFilteredBookmarks] = useState<BookmarkCardData[] | null>(null);
   const [filteredCursor, setFilteredCursor] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -57,21 +64,34 @@ export function DashboardContent({
     setSelectedTagIds([]);
   }, []);
 
-  // Re-fetch when tag filters change
+  const handleSourceChange = useCallback((source: string) => {
+    setSelectedSource(source);
+    // Update URL param
+    const params = new URLSearchParams(searchParams.toString());
+    if (source === "all") {
+      params.delete("source");
+    } else {
+      params.set("source", source);
+    }
+    router.push(`?${params.toString()}`, { scroll: false });
+  }, [router, searchParams]);
+
+  // Re-fetch when tag filters or source filter change
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
 
-    if (selectedTagIds.length === 0) {
-      // No tag filters — clear filtered results, go back to defaults
+    const source = selectedSource === "all" ? undefined : selectedSource;
+
+    if (selectedTagIds.length === 0 && !source) {
+      // No filters — clear filtered results, go back to defaults
       setFilteredBookmarks(null);
       setFilteredCursor(null);
-      // Also re-search if there's an active search query
       if (searchQuery) {
         startTransition(async () => {
-          const result = await searchBookmarks(searchQuery, filter, []);
+          const result = await searchBookmarks(searchQuery, filter, [], undefined);
           setSearchResults(result.bookmarks);
         });
       } else {
@@ -82,28 +102,32 @@ export function DashboardContent({
 
     startTransition(async () => {
       if (searchQuery) {
-        // Active search + tag filters
-        const result = await searchBookmarks(searchQuery, filter, selectedTagIds);
+        // Active search + filters
+        const result = await searchBookmarks(searchQuery, filter, selectedTagIds, source);
         setSearchResults(result.bookmarks);
       } else {
-        // Tag filters only (no search query)
-        const result = await getBookmarks(undefined, 20, filter, selectedTagIds);
+        // Filters only (no search query)
+        const result = await getBookmarks(undefined, 20, filter, selectedTagIds, source);
         setFilteredBookmarks(result.bookmarks);
         setFilteredCursor(result.nextCursor);
       }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTagIds]);
+  }, [selectedTagIds, selectedSource]);
 
   const isSearching = searchResults !== null;
   const hasTagFilters = selectedTagIds.length > 0;
-  const showFiltered = !isSearching && hasTagFilters && filteredBookmarks !== null;
+  const hasSourceFilter = selectedSource !== "all";
+  const showFiltered = !isSearching && (hasTagFilters || hasSourceFilter) && filteredBookmarks !== null;
+
+  const source = selectedSource === "all" ? undefined : selectedSource;
 
   return (
     <div className="space-y-4">
       <SearchBar
         filter={filter}
         tagIds={selectedTagIds}
+        source={source}
         onResults={handleResults}
         onClear={handleClear}
       />
@@ -113,6 +137,11 @@ export function DashboardContent({
         selectedTagIds={selectedTagIds}
         onToggleTag={handleToggleTag}
         onClearAll={handleClearAllTags}
+      />
+
+      <SourceFilterBar
+        selectedSource={selectedSource}
+        onSourceChange={handleSourceChange}
       />
 
       {isSearching && (
@@ -129,20 +158,22 @@ export function DashboardContent({
         </div>
       ) : isSearching ? (
         <BookmarkListView
-          key={`search-${searchQuery}-${selectedTagIds.join(",")}`}
+          key={`search-${searchQuery}-${selectedTagIds.join(",")}-${selectedSource}`}
           initialBookmarks={searchResults}
           initialCursor={null}
           filter={filter}
           tagIds={selectedTagIds}
+          source={source}
           folders={folders}
         />
       ) : showFiltered ? (
         <BookmarkListView
-          key={`tags-${selectedTagIds.join(",")}`}
+          key={`filtered-${selectedTagIds.join(",")}-${selectedSource}`}
           initialBookmarks={filteredBookmarks}
           initialCursor={filteredCursor}
           filter={filter}
           tagIds={selectedTagIds}
+          source={source}
           folders={folders}
         />
       ) : (
@@ -151,6 +182,7 @@ export function DashboardContent({
           initialBookmarks={initialBookmarks}
           initialCursor={initialCursor}
           filter={filter}
+          source={source}
           folders={folders}
         />
       )}
