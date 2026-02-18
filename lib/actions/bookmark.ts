@@ -119,6 +119,7 @@ export async function getBookmarks(
       visitCount: b.visitCount,
       lastVisitedAt: b.lastVisitedAt?.toISOString() ?? null,
       createdAt: b.createdAt.toISOString(),
+      source: b.source,
       tags: b.tags.map((bt) => bt.tag),
     })),
     nextCursor,
@@ -355,12 +356,13 @@ export async function searchBookmarks(
       visitCount: number;
       lastVisitedAt: Date | null;
       createdAt: Date;
+      source: string | null;
       rank: number;
     }>
   >(Prisma.sql`
     SELECT DISTINCT b."id", b."url", b."title", b."description", b."image",
            b."favicon", b."isFavorite", b."visitCount", b."lastVisitedAt",
-           b."createdAt",
+           b."createdAt", b."source",
            ts_rank(b."search_vector", to_tsquery('english', ${tsquery})) as rank
     FROM "Bookmark" b
     LEFT JOIN "BookmarkTag" bt ON bt."bookmarkId" = b."id"
@@ -408,6 +410,7 @@ export async function searchBookmarks(
       visitCount: b.visitCount,
       lastVisitedAt: b.lastVisitedAt?.toISOString() ?? null,
       createdAt: b.createdAt.toISOString(),
+      source: b.source,
       tags: tagsByBookmarkId.get(b.id) ?? [],
     })),
     nextCursor: null,

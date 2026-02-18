@@ -46,6 +46,7 @@ export type BookmarkCardData = {
   visitCount: number;
   lastVisitedAt: string | null;
   createdAt: string;
+  source: string | null;
   tags: Tag[];
 };
 
@@ -349,6 +350,19 @@ export function BookmarkCard({
             />
           )}
           <span className="truncate">{domain}</span>
+          {bookmark.source === "x" && (
+            <a
+              href={bookmark.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 font-bold text-stone-400 hover:text-stone-600"
+              title="View on X"
+              aria-label="View on X"
+            >
+              𝕏
+            </a>
+          )}
           <span className="text-stone-300">·</span>
           <span className="shrink-0">{formatDate(bookmark.createdAt)}</span>
           {bookmark.visitCount > 0 && (
