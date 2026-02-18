@@ -174,7 +174,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "notes": "Use shadcn Switch for sync toggle. AlertDialog for disconnect confirmation (project convention for destructive actions). The error state and retry button handles the auto-retry pause from US-011."
     },
     {
@@ -193,7 +193,7 @@
         "Typecheck passes"
       ],
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "notes": "The cron route calls the same sync logic as the manual Sync Now button. Extract the core sync logic from syncXBookmarks server action into a reusable function that both can call. Crontab setup: */30 * * * * curl -X POST -H 'Authorization: Bearer $CRON_SECRET' http://localhost:3000/api/cron/sync-x"
     },
     {

@@ -1,3 +1,38 @@
+## 2026-02-18 - US-010
+- Extracted core sync logic from `syncXBookmarks` server action into `lib/services/x-sync-core.ts` as `performXSync(userId: string)`
+- `syncXBookmarks` server action now delegates to `performXSync` after resolving the userId via `requireUser()`
+- Created `app/api/cron/sync-x/route.ts` POST handler:
+  - Validates `Authorization: Bearer {CRON_SECRET}` header — returns 401 if missing or wrong
+  - Queries all `XIntegration` records where `syncEnabled: true`
+  - Processes users sequentially (for loop) to respect rate limits
+  - Refreshes expired tokens before sync; on refresh failure sets `lastError` and skips user
+  - Calls `performXSync` for each user and logs imported/merged/skipped counts
+  - Returns `{ synced, failed, skipped }` summary JSON
+- Files changed: `lib/services/x-sync-core.ts` (new), `lib/actions/x-sync.ts` (simplified), `app/api/cron/sync-x/route.ts` (new)
+- **Learnings for future iterations:**
+  - Extract shared business logic into `lib/services/` (not `lib/actions/`) — actions enforce auth, services are pure logic
+  - The cron route is a regular API route (not a server action) — no `"use server"` directive
+  - `skipped` counter in cron is always 0 (per-user result tracks it internally) — declare as `const` to avoid lint error
+
+---
+
+## 2026-02-18 - US-009
+- Added `disconnectX`, `toggleXSync`, and `retryXSync` server actions to `lib/actions/x-sync.ts`
+- Created `app/dashboard/settings/x-integration-controls.tsx` — client component with full connected state UI
+  - Shows `@handle` and relative last sync time (custom formatter, no date-fns dep)
+  - Switch component for toggling syncEnabled via `toggleXSync` action
+  - "Sync Now" button with loading spinner, calls `syncXBookmarks`, shows result toast
+  - "Disconnect" button opens AlertDialog confirmation (project convention for destructive actions)
+  - Error banner with AlertTriangle icon + "Retry" button when `lastError` is set
+- Updated `app/dashboard/settings/page.tsx` to pass lastSyncedAt as ISO string to client component (Next.js boundary pattern)
+- Files changed: `lib/actions/x-sync.ts`, `app/dashboard/settings/page.tsx`, `app/dashboard/settings/x-integration-controls.tsx`
+- **Learnings for future iterations:**
+  - Pass Date objects as `.toISOString()` strings from server → client components (Next.js serialization boundary)
+  - `useTransition` is preferred over `useState(loading)` for server action calls — gives concurrent mode benefits and keeps UI responsive
+  - For "optimistic toggle" pattern: update state immediately, revert on error (setSyncEnabled opposite)
+  - `retryXSync` resets `retryCount: 0, lastError: null, syncEnabled: true` before triggering sync
+---
+
 ## 2026-02-18 - US-008
 - Added X integration env vars to `.env.example`: X_CLIENT_ID, X_CLIENT_SECRET, X_REDIRECT_URI, CRON_SECRET, MAX_SYNC_BOOKMARKS
 - Added comment block directing users to https://developer.x.com to create an X Developer App
