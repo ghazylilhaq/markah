@@ -4,6 +4,7 @@ import { IntegrationCard } from "@/components/integration-card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ConnectedToast } from "./connected-toast";
+import { XIntegrationControls } from "./x-integration-controls";
 
 // X logo glyph as SVG
 function XLogo() {
@@ -53,9 +54,16 @@ export default async function SettingsPage({
               <Link href="/api/auth/x">Connect X Account</Link>
             </Button>
           ) : (
-            <p className="text-sm text-stone-500">
-              Connected as @{xIntegration.xHandle}
-            </p>
+            <XIntegrationControls
+              xHandle={xIntegration.xHandle}
+              syncEnabled={xIntegration.syncEnabled}
+              lastSyncedAt={
+                xIntegration.lastSyncedAt
+                  ? xIntegration.lastSyncedAt.toISOString()
+                  : null
+              }
+              lastError={xIntegration.lastError}
+            />
           )}
         </IntegrationCard>
       </div>

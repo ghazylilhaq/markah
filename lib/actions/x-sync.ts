@@ -201,3 +201,64 @@ export async function syncXBookmarks(): Promise<{
 
   return { success: true, imported, merged, skipped };
 }
+
+export async function toggleXSync(enabled: boolean): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const user = await requireUser();
+
+  const integration = await prisma.xIntegration.findUnique({
+    where: { userId: user.id },
+    select: { id: true },
+  });
+
+  if (!integration) {
+    return { success: false, error: "X account not connected" };
+  }
+
+  await prisma.xIntegration.update({
+    where: { userId: user.id },
+    data: { syncEnabled: enabled },
+  });
+
+  return { success: true };
+}
+
+export async function disconnectX(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const user = await requireUser();
+
+  await prisma.xIntegration.delete({
+    where: { userId: user.id },
+  });
+
+  revalidatePath("/dashboard/settings");
+
+  return { success: true };
+}
+
+export async function retryXSync(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const user = await requireUser();
+
+  const integration = await prisma.xIntegration.findUnique({
+    where: { userId: user.id },
+    select: { id: true },
+  });
+
+  if (!integration) {
+    return { success: false, error: "X account not connected" };
+  }
+
+  await prisma.xIntegration.update({
+    where: { userId: user.id },
+    data: { retryCount: 0, lastError: null, syncEnabled: true },
+  });
+
+  return { success: true };
+}
