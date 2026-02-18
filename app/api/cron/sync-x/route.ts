@@ -49,19 +49,55 @@ export async function POST(request: NextRequest) {
         synced++;
       } else {
         console.log(`[cron/sync-x] Sync failed for user ${integration.userId}: ${result.error}`);
-        await prisma.xIntegration.update({
+
+        // Re-fetch integration to get the updated retryCount after performXSync incremented it
+        const updated = await prisma.xIntegration.findUnique({
           where: { id: integration.id },
-          data: { lastError: result.error ?? "Sync failed" },
+          select: { retryCount: true },
         });
+
+        if (updated && updated.retryCount >= 3) {
+          await prisma.xIntegration.update({
+            where: { id: integration.id },
+            data: {
+              syncEnabled: false,
+              lastError: "Sync paused after 3 consecutive failures. Re-enable from settings.",
+            },
+          });
+          console.log(`[cron/sync-x] Auto-disabled sync for user ${integration.userId} after 3 failures`);
+        }
+
         failed++;
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       console.log(`[cron/sync-x] Error for user ${integration.userId}: ${message}`);
+
+      // Re-fetch to get current retryCount, then increment and possibly auto-disable
+      const current = await prisma.xIntegration.findUnique({
+        where: { id: integration.id },
+        select: { retryCount: true },
+      });
+      const newRetryCount = (current?.retryCount ?? 0) + 1;
+
       await prisma.xIntegration.update({
         where: { id: integration.id },
-        data: { lastError: message },
+        data: {
+          lastError: message,
+          retryCount: newRetryCount,
+          ...(newRetryCount >= 3
+            ? {
+                syncEnabled: false,
+                lastError: "Sync paused after 3 consecutive failures. Re-enable from settings.",
+              }
+            : {}),
+        },
       });
+
+      if (newRetryCount >= 3) {
+        console.log(`[cron/sync-x] Auto-disabled sync for user ${integration.userId} after 3 failures`);
+      }
+
       failed++;
     }
   }

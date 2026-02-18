@@ -98,81 +98,119 @@ export async function performXSync(userId: string): Promise<SyncResult> {
   let skipped = 0;
   let mostRecentTweetId: string | null = null;
 
-  for (const xBookmark of result.bookmarks) {
-    // Track most recent tweet ID (first item since X returns newest first)
-    if (!mostRecentTweetId) {
-      mostRecentTweetId = xBookmark.tweetId;
-    }
-
-    // Skip if already imported (dedup by externalId)
-    const existingByExternalId = await prisma.bookmark.findFirst({
-      where: { externalId: xBookmark.tweetId, userId },
-      select: { id: true },
-    });
-
-    if (existingByExternalId) {
-      skipped++;
-      continue;
-    }
-
-    // Check for URL match with existing bookmarks (merge logic)
-    const normalizedIncoming = normalizeUrl(xBookmark.url);
-    const allUserBookmarks = await prisma.bookmark.findMany({
-      where: { userId },
-      select: { id: true, url: true },
-    });
-
-    const urlMatch = allUserBookmarks.find(
-      (b) => normalizeUrl(b.url) === normalizedIncoming
-    );
-
-    if (urlMatch) {
-      // Merge: update existing bookmark with X source info, keep existing tags/folders
-      await prisma.bookmark.update({
-        where: { id: urlMatch.id },
-        data: { source: "x", externalId: xBookmark.tweetId },
+  try {
+    for (const xBookmark of result.bookmarks) {
+      // Skip if already imported (dedup by externalId)
+      const existingByExternalId = await prisma.bookmark.findFirst({
+        where: { externalId: xBookmark.tweetId, userId },
+        select: { id: true },
       });
-      merged++;
-      continue;
+
+      if (existingByExternalId) {
+        skipped++;
+        // Still track as seen so we can resume from here next time
+        if (!mostRecentTweetId) {
+          mostRecentTweetId = xBookmark.tweetId;
+        }
+        continue;
+      }
+
+      // Check for URL match with existing bookmarks (merge logic)
+      const normalizedIncoming = normalizeUrl(xBookmark.url);
+      const allUserBookmarks = await prisma.bookmark.findMany({
+        where: { userId },
+        select: { id: true, url: true },
+      });
+
+      const urlMatch = allUserBookmarks.find(
+        (b) => normalizeUrl(b.url) === normalizedIncoming
+      );
+
+      if (urlMatch) {
+        // Merge: update existing bookmark with X source info, keep existing tags/folders
+        await prisma.bookmark.update({
+          where: { id: urlMatch.id },
+          data: { source: "x", externalId: xBookmark.tweetId },
+        });
+        merged++;
+      } else {
+        // Create title from first 100 chars of tweet text
+        const title =
+          xBookmark.text.length > 100
+            ? xBookmark.text.slice(0, 97) + "..."
+            : xBookmark.text;
+
+        // Create new bookmark
+        const bookmark = await prisma.bookmark.create({
+          data: {
+            url: xBookmark.url,
+            title,
+            description: xBookmark.text,
+            source: "x",
+            externalId: xBookmark.tweetId,
+            userId,
+          },
+        });
+
+        // Add to X Bookmarks folder
+        await prisma.bookmarkFolder
+          .create({ data: { bookmarkId: bookmark.id, folderId: xFolderId } })
+          .catch(() => {}); // Skip if already in folder
+
+        imported++;
+
+        // Fire AI tag suggestions async (non-blocking)
+        autoTagBookmark(bookmark.id, title, xBookmark.text, xBookmark.url, userId).catch(
+          () => {}
+        );
+      }
+
+      // Save progress after each successfully processed bookmark
+      // Track the most recent tweet ID (X returns newest first, so first processed = most recent)
+      if (!mostRecentTweetId) {
+        mostRecentTweetId = xBookmark.tweetId;
+      }
+
+      // Persist progress incrementally so partial syncs can resume
+      await prisma.xIntegration.update({
+        where: { userId },
+        data: {
+          lastSyncedTweetId: xBookmark.tweetId,
+        },
+      });
     }
+  } catch (err) {
+    // Partial failure — save progress so next sync resumes from where we left off
+    const errorMessage = err instanceof Error ? err.message : "Unknown sync error";
 
-    // Create title from first 100 chars of tweet text
-    const title =
-      xBookmark.text.length > 100
-        ? xBookmark.text.slice(0, 97) + "..."
-        : xBookmark.text;
-
-    // Create new bookmark
-    const bookmark = await prisma.bookmark.create({
+    await prisma.xIntegration.update({
+      where: { userId },
       data: {
-        url: xBookmark.url,
-        title,
-        description: xBookmark.text,
-        source: "x",
-        externalId: xBookmark.tweetId,
-        userId,
+        lastSyncedAt: new Date(),
+        ...(mostRecentTweetId ? { lastSyncedTweetId: mostRecentTweetId } : {}),
+        retryCount: { increment: 1 },
+        lastError: errorMessage,
       },
     });
 
-    // Add to X Bookmarks folder
-    await prisma.bookmarkFolder
-      .create({ data: { bookmarkId: bookmark.id, folderId: xFolderId } })
-      .catch(() => {}); // Skip if already in folder
+    revalidatePath("/dashboard", "layout");
 
-    imported++;
+    // Return partial success if we imported anything before the failure
+    if (imported > 0 || merged > 0) {
+      return { success: true, imported, merged, skipped, error: errorMessage };
+    }
 
-    // Fire AI tag suggestions async (non-blocking)
-    autoTagBookmark(bookmark.id, title, xBookmark.text, xBookmark.url, userId).catch(
-      () => {}
-    );
+    return { success: false, error: errorMessage };
   }
 
-  // Update XIntegration: lastSyncedAt and lastSyncedTweetId
+  // Full success — update lastSyncedAt and reset error state
   await prisma.xIntegration.update({
     where: { userId },
     data: {
       lastSyncedAt: new Date(),
       ...(mostRecentTweetId ? { lastSyncedTweetId: mostRecentTweetId } : {}),
+      retryCount: 0,
+      lastError: null,
     },
   });
 
