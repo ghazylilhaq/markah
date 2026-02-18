@@ -1,17 +1,24 @@
+## Codebase Patterns
+- Database: Supabase PostgreSQL is remote — `prisma migrate dev` requires DB connection; create migrations manually in `prisma/migrations/YYYYMMDD_description/migration.sql` and apply with `npx prisma migrate deploy`
+- After schema changes: always run `npx prisma generate` (no DB needed) to update the Prisma client
+- TypeScript check: `npx tsc --noEmit` (no output = passes)
+- Unique indexes on nullable columns: PostgreSQL allows multiple NULLs naturally; `@@unique([externalId, userId])` in schema is safe for nullable externalId
+- .env* is gitignored — use `git add -f` for .env.example
+
 # Ralph Progress Log
-Started: Tue Feb 18 2026
-Feature: X (Twitter) Bookmarks Sync
+Started: Wed Feb 18 20:55:53 WIB 2026
 ---
 
-## Codebase Patterns
-- (inherited from previous run) Folder context menu: use `opacity-100 md:opacity-0 md:group-hover:opacity-100` for mobile-visible, desktop hover-reveal
-- Sidebar component accepts optional `onNavigate` callback prop for Sheet close on navigation
-- Use `useSyncExternalStore` for localStorage-backed state or media queries (no setState in useEffect)
-- Touch targets: `min-h-[44px] min-w-[44px]` with flex centering, reset on desktop with `md:min-h-0 md:min-w-0`
-- Tag color utility at `lib/utils/tag-color.ts` — `tagToColor()` for text, `tagBadgeStyle()` for full badge styles
-- Responsive padding: `p-3 md:p-6` pattern for mobile-first
-- `useMediaQuery` hook at `lib/hooks/use-media-query.ts` — uses `useSyncExternalStore`, returns false on server
-- Sticky bar in padded container: use negative margins `-mx-3 px-3 md:-mx-6 md:px-6`
-- Full-screen mobile dialog: override DialogContent positioning with responsive Tailwind classes
-- .env.example is gitignored by .env* — use `git add -f .env.example` to commit
+## 2026-02-18 - US-001
+- Added `XIntegration` model to `prisma/schema.prisma` with all required fields (xUserId, xHandle, accessToken, refreshToken, expiresAt, lastSyncedAt, lastSyncedTweetId, syncEnabled, retryCount, lastError)
+- Added `source` (String?) and `externalId` (String?) fields to `Bookmark` model
+- Added `@@unique([externalId, userId])` constraint on Bookmark
+- Added `xIntegration XIntegration?` relation to User model
+- Created manual migration at `prisma/migrations/20260218_add_x_integration/migration.sql`
+- Ran `npx prisma generate` to update Prisma client
+- Files changed: `prisma/schema.prisma`, `prisma/migrations/20260218_add_x_integration/migration.sql`
+- **Learnings for future iterations:**
+  - The Supabase remote DB is not reachable from local dev environment — always create migrations manually
+  - Use `npx prisma generate` (no DB needed) to update the generated client after schema changes
+  - `@@unique` on nullable fields works correctly in PostgreSQL (multiple NULLs are distinct)
 ---

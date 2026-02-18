@@ -18,7 +18,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Non-breaking additive migration. All existing bookmarks will have null for source and externalId. The unique constraint on [externalId, userId] should use a conditional/partial approach or handle nulls appropriately since most bookmarks will have null externalId."
     },
     {
