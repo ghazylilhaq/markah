@@ -42,6 +42,38 @@ Started: Wed Feb 18 20:55:53 WIB 2026
   - The XIntegration import from `@prisma/client` works directly since it's in the schema
 ---
 
+## 2026-02-18 - US-004
+- Created `components/integration-card.tsx` — generic card component with props: name, icon, description, connected (boolean), children slot
+- Created `app/dashboard/settings/page.tsx` as server component that fetches XIntegration record via Prisma
+- Created `app/dashboard/settings/connected-toast.tsx` as client component to show success toast when `?connected=true` is in URL
+- Added Settings icon link at bottom of sidebar in `components/sidebar.tsx` (below folder tree, with border separator)
+- X logo rendered as inline SVG in settings page
+- Middleware already handles /dashboard/settings protection (all non-public routes redirect to login)
+- Files changed: `components/integration-card.tsx`, `app/dashboard/settings/page.tsx`, `app/dashboard/settings/connected-toast.tsx`, `components/sidebar.tsx`
+- **Learnings for future iterations:**
+  - Settings page uses `await searchParams` (Next.js 16 pattern — searchParams is a Promise in page components)
+  - For "show toast on mount" in server-rendered pages: extract a `"use client"` child component that calls `useEffect` → `toast()` — cannot use useEffect in server components
+  - Sidebar Settings link follows the exact same className pattern as virtualFolders links; wrapped in a border-top div for visual separation
+  - Middleware covers /dashboard/settings automatically — no changes needed since only public routes are whitelisted
+---
+
+## 2026-02-18 - US-005
+- Created `lib/services/x-bookmarks.ts` with `XBookmark` type and `fetchXBookmarks` function
+- Fetches from GET https://api.twitter.com/2/users/{xUserId}/bookmarks with tweet.fields, expansions, user.fields
+- Handles pagination via pagination_token loop, stopping when maxResults reached or no next_token
+- Handles 429 rate limit responses by returning partial results with hasMore: true
+- Constructs stable URLs as https://x.com/{authorHandle}/status/{tweetId}
+- Matches author data from includes.users map keyed by author_id
+- Respects MAX_SYNC_BOOKMARKS env var (default 50) for per-sync cap
+- Returns { bookmarks, hasMore, nextToken }
+- Files changed: `lib/services/x-bookmarks.ts`
+- **Learnings for future iterations:**
+  - X API v2 bookmark endpoint: `GET /2/users/{xUserId}/bookmarks` with Bearer token auth
+  - Build a Map<author_id, XUser> from includes.users for O(1) author lookup per tweet
+  - Break out of pagination loop when response has no data or no next_token; set hasMore=false
+  - hasMore stays true if we hit maxResults mid-page (there may be more on the API side)
+---
+
 ## 2026-02-18 - US-002
 - Created `app/api/auth/x/route.ts` with GET handler for X OAuth initiation
 - Generates PKCE code_verifier (96 random bytes → base64url = 128 chars) and S256 code_challenge

@@ -77,7 +77,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "The IntegrationCard component should be generic enough for future integrations (Mastodon, Bluesky). The connected state UI will be added in US-009. Check sidebar.tsx for existing navigation item patterns."
     },
     {
@@ -97,7 +97,7 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "X API v2 returns max 100 tweets per request. The service does NOT handle token refresh — callers should refresh tokens before calling. MAX_SYNC_BOOKMARKS env var caps total fetched per sync cycle."
     },
     {
