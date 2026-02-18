@@ -119,7 +119,7 @@
         "Typecheck passes"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": "This is the basic sync without merge logic or folder creation — those come in US-007. Keep it simple: fetch, dedup by externalId, create, tag. Follow the pattern in addBookmark for AI tag suggestions (fire async, don't block)."
     },
     {

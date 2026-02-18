@@ -74,6 +74,25 @@ Started: Wed Feb 18 20:55:53 WIB 2026
   - hasMore stays true if we hit maxResults mid-page (there may be more on the API side)
 ---
 
+## 2026-02-18 - US-006
+- Created `lib/actions/x-sync.ts` with `syncXBookmarks()` server action
+- Fetches user's XIntegration record; returns error if not connected
+- Refreshes token if expired via `refreshXToken()` from `lib/services/x-auth.ts`
+- Calls `fetchXBookmarks` with accessToken, xUserId, and sinceId from lastSyncedTweetId
+- Deduplicates by externalId — skips if a Bookmark with matching externalId+userId exists
+- Creates new Bookmark records with url, title (first 100 chars truncated), description (full text), source: 'x', externalId
+- Fires AI tag suggestions async (non-blocking) via private `autoTagBookmark` helper
+- Updates XIntegration.lastSyncedAt and lastSyncedTweetId to most recent tweet ID
+- Calls revalidatePath('/dashboard', 'layout')
+- Returns { success, imported, skipped }
+- Files changed: `lib/actions/x-sync.ts`
+- **Learnings for future iterations:**
+  - X API returns bookmarks newest first — first item in result.bookmarks is the most recent tweet ID
+  - The `@@unique([externalId, userId])` constraint means we can use `findFirst` for dedup check; alternatively could try/catch a create with unique conflict
+  - Auto-tag pattern: extract a private async helper, call it with `.catch(() => {})` to fire-and-forget without blocking the sync loop
+  - The `autoTagBookmark` helper follows the same pattern as `fetchAndUpdateMetadata` in `lib/actions/bookmark.ts`
+---
+
 ## 2026-02-18 - US-002
 - Created `app/api/auth/x/route.ts` with GET handler for X OAuth initiation
 - Generates PKCE code_verifier (96 random bytes → base64url = 128 chars) and S256 code_challenge
