@@ -56,7 +56,7 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "X OAuth 2.0 tokens expire after 2 hours. The refreshXToken helper will be used by the sync service (US-006) and cron route (US-010). Upsert handles reconnection after disconnect."
     },
     {

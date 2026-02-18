@@ -23,6 +23,25 @@ Started: Wed Feb 18 20:55:53 WIB 2026
   - `@@unique` on nullable fields works correctly in PostgreSQL (multiple NULLs are distinct)
 ---
 
+## 2026-02-18 - US-003
+- Created `app/api/auth/x/callback/route.ts` GET handler for X OAuth callback
+- Validates PKCE cookie (HMAC-SHA256 signature verification using timingSafeEqual)
+- Validates state parameter matches stored state (CSRF protection)
+- Exchanges authorization code for tokens via POST to https://api.twitter.com/2/oauth2/token with Basic auth
+- Fetches X user info (id, username) via GET https://api.twitter.com/2/users/me
+- Upserts XIntegration record for authenticated Markah user
+- Clears PKCE cookie after successful exchange (maxAge: 0)
+- Redirects to /dashboard/settings?connected=true on success, /dashboard/settings?error=... on OAuth error
+- Created `lib/services/x-auth.ts` with `refreshXToken(integration: XIntegration)` helper
+- refreshXToken POSTs to token endpoint with grant_type=refresh_token, updates DB, returns new access token
+- Files changed: `app/api/auth/x/callback/route.ts`, `lib/services/x-auth.ts`
+- **Learnings for future iterations:**
+  - Cookie verification: use `crypto.timingSafeEqual` to compare HMAC values (prevents timing attacks)
+  - X token exchange uses Basic auth (base64 of clientId:clientSecret), same pattern as refresh
+  - Cookie clearing: set maxAge: 0 (not just delete) to ensure the browser removes it
+  - The XIntegration import from `@prisma/client` works directly since it's in the schema
+---
+
 ## 2026-02-18 - US-002
 - Created `app/api/auth/x/route.ts` with GET handler for X OAuth initiation
 - Generates PKCE code_verifier (96 random bytes → base64url = 128 chars) and S256 code_challenge
