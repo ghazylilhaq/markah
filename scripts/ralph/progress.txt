@@ -22,3 +22,18 @@ Started: Wed Feb 18 20:55:53 WIB 2026
   - Use `npx prisma generate` (no DB needed) to update the generated client after schema changes
   - `@@unique` on nullable fields works correctly in PostgreSQL (multiple NULLs are distinct)
 ---
+
+## 2026-02-18 - US-002
+- Created `app/api/auth/x/route.ts` with GET handler for X OAuth initiation
+- Generates PKCE code_verifier (96 random bytes → base64url = 128 chars) and S256 code_challenge
+- Generates random state for CSRF protection
+- Signs cookie payload with HMAC-SHA256 using NEXTAUTH_SECRET to prevent tampering
+- Stores signed JSON (codeVerifier + state) in HTTP-only cookie `x_oauth_pkce` (10 min TTL)
+- Redirects to https://twitter.com/i/oauth2/authorize with all required params
+- Returns 401 if user not authenticated via auth(), 500 if env vars missing
+- Files changed: `app/api/auth/x/route.ts`
+- **Learnings for future iterations:**
+  - Cookie signing: use HMAC-SHA256 with NEXTAUTH_SECRET; format is `${hmac}.${base64(payload)}`
+  - PKCE base64url encoding: replace +→-, /→_, strip = padding; use crypto.randomBytes(96) for 128-char verifier
+  - Next.js API routes use NextResponse.redirect() and can set cookies on the response before redirecting
+---

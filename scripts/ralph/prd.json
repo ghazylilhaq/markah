@@ -36,7 +36,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Separate from NextAuth to avoid conflicts with existing credentials auth. The offline.access scope is needed to get a refresh token. Use crypto.randomBytes for code_verifier and crypto.createHash('sha256') for code_challenge."
     },
     {
