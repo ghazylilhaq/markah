@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { QuickAddWithSuggestions } from "@/components/quick-add-with-suggestions";
@@ -97,14 +98,16 @@ export default async function DashboardPage({
         <QuickAddWithSuggestions />
       </div>
 
-      <DashboardContent
-        initialBookmarks={bookmarks}
-        initialCursor={nextCursor}
-        filter={filter}
-        initialSource={validSource ?? "all"}
-        userTags={userTags}
-        folders={folderTree}
-      />
+      <Suspense fallback={<div className="text-sm text-stone-400">Loading...</div>}>
+        <DashboardContent
+          initialBookmarks={bookmarks}
+          initialCursor={nextCursor}
+          filter={filter}
+          initialSource={validSource ?? "all"}
+          userTags={userTags}
+          folders={folderTree}
+        />
+      </Suspense>
     </div>
   );
 }

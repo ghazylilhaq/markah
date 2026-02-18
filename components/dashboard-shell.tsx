@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, Suspense } from "react";
 import { signOut } from "next-auth/react";
 import { Menu, LogOut, Bookmark, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -222,7 +222,9 @@ export function DashboardShell({
             <span className="text-sm font-semibold text-stone-900">Markah</span>
           </div>
           <div className="overflow-y-auto" style={{ height: "calc(100vh - 3.5rem)" }}>
-            <Sidebar folders={folders} />
+            <Suspense>
+              <Sidebar folders={folders} />
+            </Suspense>
           </div>
         </aside>
 
@@ -246,7 +248,9 @@ export function DashboardShell({
                     </span>
                   </SheetTitle>
                   <div className="overflow-y-auto max-h-[calc(100dvh-4rem)]">
-                    <Sidebar folders={folders} onNavigate={() => setOpen(false)} />
+                    <Suspense>
+                      <Sidebar folders={folders} onNavigate={() => setOpen(false)} />
+                    </Suspense>
                   </div>
                 </SheetContent>
               </Sheet>
