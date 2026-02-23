@@ -141,6 +141,19 @@ export function BookmarkListItem({
           <span className="shrink-0 text-xs text-stone-400">
             {domain}
           </span>
+          {bookmark.source === "x" && (
+            <a
+              href={bookmark.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 text-xs font-bold text-stone-400 hover:text-stone-600"
+              title="View on X"
+              aria-label="View on X"
+            >
+              𝕏
+            </a>
+          )}
 
           {/* Tags - show 2 on mobile, 3 on md+ */}
           {bookmark.tags.length > 0 && (

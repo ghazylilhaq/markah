@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { QuickAddWithSuggestions } from "@/components/quick-add-with-suggestions";
@@ -41,7 +42,7 @@ function getFilterLabel(
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ folder?: string }>;
+  searchParams: Promise<{ folder?: string; source?: string }>;
 }) {
   const user = await getCurrentUser();
 
@@ -49,7 +50,10 @@ export default async function DashboardPage({
     redirect("/login");
   }
 
-  const { folder: filter } = await searchParams;
+  const { folder: filter, source } = await searchParams;
+
+  // Validate source param
+  const validSource = source === "x" || source === "manual" ? source : undefined;
 
   // If filtering by a specific folder, look up its name for the heading
   let folderName: string | null = null;
@@ -62,7 +66,7 @@ export default async function DashboardPage({
   }
 
   const [{ bookmarks, nextCursor }, userTags, allFolders] = await Promise.all([
-    getBookmarks(undefined, 20, filter),
+    getBookmarks(undefined, 20, filter, undefined, validSource),
     getUserTags(),
     prisma.folder.findMany({
       where: { userId: user.id },
@@ -94,13 +98,16 @@ export default async function DashboardPage({
         <QuickAddWithSuggestions />
       </div>
 
-      <DashboardContent
-        initialBookmarks={bookmarks}
-        initialCursor={nextCursor}
-        filter={filter}
-        userTags={userTags}
-        folders={folderTree}
-      />
+      <Suspense fallback={<div className="text-sm text-stone-400">Loading...</div>}>
+        <DashboardContent
+          initialBookmarks={bookmarks}
+          initialCursor={nextCursor}
+          filter={filter}
+          initialSource={validSource ?? "all"}
+          userTags={userTags}
+          folders={folderTree}
+        />
+      </Suspense>
     </div>
   );
 }

@@ -1,17 +1,223 @@
-# Ralph Progress Log
-Started: Tue Feb 18 2026
-Feature: X (Twitter) Bookmarks Sync
+## 2026-02-18 - US-013
+- Added optional `source` parameter to `getBookmarks` (Prisma `where.source` = 'x' or `null`) and `searchBookmarks` (raw SQL `AND b."source" = 'x'` or `AND b."source" IS NULL`)
+- Created `components/source-filter-bar.tsx` — segmented button group with 'All Sources', 'Manual', '𝕏' options
+- Updated `components/dashboard-content.tsx`:
+  - Added `selectedSource` state (initialized from `initialSource` prop)
+  - Source changes update URL via `useRouter`/`useSearchParams` (`?source=x` or `?source=manual`, deleted when 'all')
+  - Combined source + tag filters in re-fetch `useEffect`
+  - Passes `source` through to `BookmarkListView`, `SearchBar`, and fetch calls
+- Updated `components/search-bar.tsx` to accept and pass `source` to `searchBookmarks`
+- Updated `components/bookmark-list-view.tsx` to accept `source` prop and pass to `getBookmarks` for load-more
+- Updated `app/dashboard/page.tsx` to read `source` from searchParams, validate it, pass to `getBookmarks` and `DashboardContent`
+- Files changed: `lib/actions/bookmark.ts`, `components/dashboard-content.tsx`, `components/source-filter-bar.tsx`, `components/bookmark-list-view.tsx`, `components/search-bar.tsx`, `app/dashboard/page.tsx`
+- Typecheck and lint pass
+- **Learnings for future iterations:**
+  - Source filter on nullable Prisma field: use `where.source = null` for manual (Prisma treats null as IS NULL in WHERE), `where.source = 'x'` for X imports
+  - URL param + client state pattern: initialize state from prop (server-provided), update URL on change via `useRouter.push` with `{ scroll: false }`; `useSearchParams()` needed to preserve other existing params when adding/removing `source`
+  - Combined filter re-fetch: a single `useEffect` on `[selectedTagIds, selectedSource]` handles both — clear filtered results when neither filter is active, fetch with combined filters otherwise
+  - `DashboardContent` uses `useSearchParams()` — requires it to be wrapped in a `Suspense` boundary at the page level (Next.js App Router requirement); page.tsx already uses `async` component, no extra Suspense needed since the page itself is server-rendered
+
+---
+
+## 2026-02-18 - US-012
+- Added `source: string | null` field to `BookmarkCardData` type in `components/bookmark-card.tsx`
+- Updated `getBookmarks` in `lib/actions/bookmark.ts` to include `source` in the returned bookmark objects
+- Updated `searchBookmarks` raw SQL query to SELECT `b."source"`, added it to the result type, and included it in the return map
+- Added X badge (𝕏 character) to `bookmark-card.tsx` domain area — inline `<a>` link that opens the bookmark URL on X in a new tab, only renders when `bookmark.source === 'x'`
+- Added X badge to `bookmark-list-item.tsx` — same pattern, placed after the domain span in the metadata row
+- Badge is styled as `shrink-0 text-xs font-bold text-stone-400 hover:text-stone-600` — subtle muted indicator consistent with the rest of the domain/metadata row
+- Typecheck passes
+- **Learnings for future iterations:**
+  - The `BookmarkCardData` type in `bookmark-card.tsx` is imported by `bookmark-list-item.tsx` — adding a field here propagates to both components automatically
+  - For raw SQL queries in `searchBookmarks`, the result type array and the SELECT clause must be kept in sync manually
+  - The 𝕏 character (U+1D54F) renders as the double-struck X glyph used for the X brand — no SVG needed
+
+---
+
+## 2026-02-18 - US-011
+- Wrapped the fetch+import loop in `performXSync` (lib/services/x-sync-core.ts) in try/catch
+- Added incremental progress saving: after each successfully processed bookmark, persist `lastSyncedTweetId` to DB so partial syncs can resume from the correct position
+- On failure: increment `retryCount` via `{ increment: 1 }`, set `lastError` to error message, save partial progress (lastSyncedAt + lastSyncedTweetId if any)
+- Return partial success (`{ success: true, imported, merged, skipped, error }`) if any bookmarks were imported before failure, else `{ success: false, error }`
+- On full success: reset `retryCount: 0` and `lastError: null` alongside updating lastSyncedAt
+- In cron route: after `performXSync` returns failure, re-fetch integration to get updated `retryCount`; if >= 3, set `syncEnabled: false` with "paused after 3 failures" message
+- For unhandled exceptions in cron, manually increment retryCount and check >= 3 threshold
+- Files changed: `lib/services/x-sync-core.ts`, `app/api/cron/sync-x/route.ts`
+- **Learnings for future iterations:**
+  - Incremental progress: update `lastSyncedTweetId` inside the loop (not just at the end) to ensure resume from last successful item
+  - Prisma `{ increment: 1 }` operator works for atomic increments without a read-modify-write cycle
+  - After `performXSync` increments retryCount internally, cron must re-fetch to get the new value (not use stale in-memory value)
+  - Partial success pattern: return `success: true` with `error` field populated — allows callers to show a warning without treating it as complete failure
+
+---
+
+## 2026-02-18 - US-010
+- Extracted core sync logic from `syncXBookmarks` server action into `lib/services/x-sync-core.ts` as `performXSync(userId: string)`
+- `syncXBookmarks` server action now delegates to `performXSync` after resolving the userId via `requireUser()`
+- Created `app/api/cron/sync-x/route.ts` POST handler:
+  - Validates `Authorization: Bearer {CRON_SECRET}` header — returns 401 if missing or wrong
+  - Queries all `XIntegration` records where `syncEnabled: true`
+  - Processes users sequentially (for loop) to respect rate limits
+  - Refreshes expired tokens before sync; on refresh failure sets `lastError` and skips user
+  - Calls `performXSync` for each user and logs imported/merged/skipped counts
+  - Returns `{ synced, failed, skipped }` summary JSON
+- Files changed: `lib/services/x-sync-core.ts` (new), `lib/actions/x-sync.ts` (simplified), `app/api/cron/sync-x/route.ts` (new)
+- **Learnings for future iterations:**
+  - Extract shared business logic into `lib/services/` (not `lib/actions/`) — actions enforce auth, services are pure logic
+  - The cron route is a regular API route (not a server action) — no `"use server"` directive
+  - `skipped` counter in cron is always 0 (per-user result tracks it internally) — declare as `const` to avoid lint error
+
+---
+
+## 2026-02-18 - US-009
+- Added `disconnectX`, `toggleXSync`, and `retryXSync` server actions to `lib/actions/x-sync.ts`
+- Created `app/dashboard/settings/x-integration-controls.tsx` — client component with full connected state UI
+  - Shows `@handle` and relative last sync time (custom formatter, no date-fns dep)
+  - Switch component for toggling syncEnabled via `toggleXSync` action
+  - "Sync Now" button with loading spinner, calls `syncXBookmarks`, shows result toast
+  - "Disconnect" button opens AlertDialog confirmation (project convention for destructive actions)
+  - Error banner with AlertTriangle icon + "Retry" button when `lastError` is set
+- Updated `app/dashboard/settings/page.tsx` to pass lastSyncedAt as ISO string to client component (Next.js boundary pattern)
+- Files changed: `lib/actions/x-sync.ts`, `app/dashboard/settings/page.tsx`, `app/dashboard/settings/x-integration-controls.tsx`
+- **Learnings for future iterations:**
+  - Pass Date objects as `.toISOString()` strings from server → client components (Next.js serialization boundary)
+  - `useTransition` is preferred over `useState(loading)` for server action calls — gives concurrent mode benefits and keeps UI responsive
+  - For "optimistic toggle" pattern: update state immediately, revert on error (setSyncEnabled opposite)
+  - `retryXSync` resets `retryCount: 0, lastError: null, syncEnabled: true` before triggering sync
+---
+
+## 2026-02-18 - US-008
+- Added X integration env vars to `.env.example`: X_CLIENT_ID, X_CLIENT_SECRET, X_REDIRECT_URI, CRON_SECRET, MAX_SYNC_BOOKMARKS
+- Added comment block directing users to https://developer.x.com to create an X Developer App
+- Included the redirect URI format: http://localhost:3000/api/auth/x/callback
+- Used `git add -f .env.example` since .env* is gitignored
+- Files changed: `.env.example`
+- **Learnings for future iterations:**
+  - `.env.example` is gitignored by `.env*` pattern — always use `git add -f .env.example` to stage it
+  - This pattern is already documented in the Codebase Patterns section of progress.txt
+---
+
+## 2026-02-18 - US-007
+- Added `normalizeUrl()` helper: strips protocol, www., trailing slash; treats twitter.com and x.com as equivalent
+- Added `getOrCreateXBookmarksFolder()` helper: finds by name+userId or creates new folder
+- Before creating a new bookmark, now fetches all user bookmarks and checks for URL match (normalized comparison)
+- URL match found: updates existing bookmark with `source: 'x'` and `externalId`, counts as `merged` (keeps existing tags/folders)
+- No URL match: creates new bookmark and adds to X Bookmarks folder via `BookmarkFolder` join table
+- Updated return type to `{ success, imported, merged, skipped }`
+- Files changed: `lib/actions/x-sync.ts`
+- **Learnings for future iterations:**
+  - URL normalization: chain `.replace()` calls for protocol, www, domain equivalence (twitter.com↔x.com), trailing slash
+  - Folder find-or-create pattern: `findFirst` then `create` — safe since user-specific (no race condition concern in single-user sync)
+  - `BookmarkFolder.create().catch(() => {})` safely handles the edge case where join already exists
+  - The URL match check fetches all user bookmarks per bookmark processed — acceptable for typical users (<1000 bookmarks); could be optimized with a Map if scale is a concern
 ---
 
 ## Codebase Patterns
-- (inherited from previous run) Folder context menu: use `opacity-100 md:opacity-0 md:group-hover:opacity-100` for mobile-visible, desktop hover-reveal
-- Sidebar component accepts optional `onNavigate` callback prop for Sheet close on navigation
-- Use `useSyncExternalStore` for localStorage-backed state or media queries (no setState in useEffect)
-- Touch targets: `min-h-[44px] min-w-[44px]` with flex centering, reset on desktop with `md:min-h-0 md:min-w-0`
-- Tag color utility at `lib/utils/tag-color.ts` — `tagToColor()` for text, `tagBadgeStyle()` for full badge styles
-- Responsive padding: `p-3 md:p-6` pattern for mobile-first
-- `useMediaQuery` hook at `lib/hooks/use-media-query.ts` — uses `useSyncExternalStore`, returns false on server
-- Sticky bar in padded container: use negative margins `-mx-3 px-3 md:-mx-6 md:px-6`
-- Full-screen mobile dialog: override DialogContent positioning with responsive Tailwind classes
-- .env.example is gitignored by .env* — use `git add -f .env.example` to commit
+- Database: Supabase PostgreSQL is remote — `prisma migrate dev` requires DB connection; create migrations manually in `prisma/migrations/YYYYMMDD_description/migration.sql` and apply with `npx prisma migrate deploy`
+- After schema changes: always run `npx prisma generate` (no DB needed) to update the Prisma client
+- TypeScript check: `npx tsc --noEmit` (no output = passes)
+- Unique indexes on nullable columns: PostgreSQL allows multiple NULLs naturally; `@@unique([externalId, userId])` in schema is safe for nullable externalId
+- .env* is gitignored — use `git add -f` for .env.example
+
+# Ralph Progress Log
+Started: Wed Feb 18 20:55:53 WIB 2026
+---
+
+## 2026-02-18 - US-001
+- Added `XIntegration` model to `prisma/schema.prisma` with all required fields (xUserId, xHandle, accessToken, refreshToken, expiresAt, lastSyncedAt, lastSyncedTweetId, syncEnabled, retryCount, lastError)
+- Added `source` (String?) and `externalId` (String?) fields to `Bookmark` model
+- Added `@@unique([externalId, userId])` constraint on Bookmark
+- Added `xIntegration XIntegration?` relation to User model
+- Created manual migration at `prisma/migrations/20260218_add_x_integration/migration.sql`
+- Ran `npx prisma generate` to update Prisma client
+- Files changed: `prisma/schema.prisma`, `prisma/migrations/20260218_add_x_integration/migration.sql`
+- **Learnings for future iterations:**
+  - The Supabase remote DB is not reachable from local dev environment — always create migrations manually
+  - Use `npx prisma generate` (no DB needed) to update the generated client after schema changes
+  - `@@unique` on nullable fields works correctly in PostgreSQL (multiple NULLs are distinct)
+---
+
+## 2026-02-18 - US-003
+- Created `app/api/auth/x/callback/route.ts` GET handler for X OAuth callback
+- Validates PKCE cookie (HMAC-SHA256 signature verification using timingSafeEqual)
+- Validates state parameter matches stored state (CSRF protection)
+- Exchanges authorization code for tokens via POST to https://api.twitter.com/2/oauth2/token with Basic auth
+- Fetches X user info (id, username) via GET https://api.twitter.com/2/users/me
+- Upserts XIntegration record for authenticated Markah user
+- Clears PKCE cookie after successful exchange (maxAge: 0)
+- Redirects to /dashboard/settings?connected=true on success, /dashboard/settings?error=... on OAuth error
+- Created `lib/services/x-auth.ts` with `refreshXToken(integration: XIntegration)` helper
+- refreshXToken POSTs to token endpoint with grant_type=refresh_token, updates DB, returns new access token
+- Files changed: `app/api/auth/x/callback/route.ts`, `lib/services/x-auth.ts`
+- **Learnings for future iterations:**
+  - Cookie verification: use `crypto.timingSafeEqual` to compare HMAC values (prevents timing attacks)
+  - X token exchange uses Basic auth (base64 of clientId:clientSecret), same pattern as refresh
+  - Cookie clearing: set maxAge: 0 (not just delete) to ensure the browser removes it
+  - The XIntegration import from `@prisma/client` works directly since it's in the schema
+---
+
+## 2026-02-18 - US-004
+- Created `components/integration-card.tsx` — generic card component with props: name, icon, description, connected (boolean), children slot
+- Created `app/dashboard/settings/page.tsx` as server component that fetches XIntegration record via Prisma
+- Created `app/dashboard/settings/connected-toast.tsx` as client component to show success toast when `?connected=true` is in URL
+- Added Settings icon link at bottom of sidebar in `components/sidebar.tsx` (below folder tree, with border separator)
+- X logo rendered as inline SVG in settings page
+- Middleware already handles /dashboard/settings protection (all non-public routes redirect to login)
+- Files changed: `components/integration-card.tsx`, `app/dashboard/settings/page.tsx`, `app/dashboard/settings/connected-toast.tsx`, `components/sidebar.tsx`
+- **Learnings for future iterations:**
+  - Settings page uses `await searchParams` (Next.js 16 pattern — searchParams is a Promise in page components)
+  - For "show toast on mount" in server-rendered pages: extract a `"use client"` child component that calls `useEffect` → `toast()` — cannot use useEffect in server components
+  - Sidebar Settings link follows the exact same className pattern as virtualFolders links; wrapped in a border-top div for visual separation
+  - Middleware covers /dashboard/settings automatically — no changes needed since only public routes are whitelisted
+---
+
+## 2026-02-18 - US-005
+- Created `lib/services/x-bookmarks.ts` with `XBookmark` type and `fetchXBookmarks` function
+- Fetches from GET https://api.twitter.com/2/users/{xUserId}/bookmarks with tweet.fields, expansions, user.fields
+- Handles pagination via pagination_token loop, stopping when maxResults reached or no next_token
+- Handles 429 rate limit responses by returning partial results with hasMore: true
+- Constructs stable URLs as https://x.com/{authorHandle}/status/{tweetId}
+- Matches author data from includes.users map keyed by author_id
+- Respects MAX_SYNC_BOOKMARKS env var (default 50) for per-sync cap
+- Returns { bookmarks, hasMore, nextToken }
+- Files changed: `lib/services/x-bookmarks.ts`
+- **Learnings for future iterations:**
+  - X API v2 bookmark endpoint: `GET /2/users/{xUserId}/bookmarks` with Bearer token auth
+  - Build a Map<author_id, XUser> from includes.users for O(1) author lookup per tweet
+  - Break out of pagination loop when response has no data or no next_token; set hasMore=false
+  - hasMore stays true if we hit maxResults mid-page (there may be more on the API side)
+---
+
+## 2026-02-18 - US-006
+- Created `lib/actions/x-sync.ts` with `syncXBookmarks()` server action
+- Fetches user's XIntegration record; returns error if not connected
+- Refreshes token if expired via `refreshXToken()` from `lib/services/x-auth.ts`
+- Calls `fetchXBookmarks` with accessToken, xUserId, and sinceId from lastSyncedTweetId
+- Deduplicates by externalId — skips if a Bookmark with matching externalId+userId exists
+- Creates new Bookmark records with url, title (first 100 chars truncated), description (full text), source: 'x', externalId
+- Fires AI tag suggestions async (non-blocking) via private `autoTagBookmark` helper
+- Updates XIntegration.lastSyncedAt and lastSyncedTweetId to most recent tweet ID
+- Calls revalidatePath('/dashboard', 'layout')
+- Returns { success, imported, skipped }
+- Files changed: `lib/actions/x-sync.ts`
+- **Learnings for future iterations:**
+  - X API returns bookmarks newest first — first item in result.bookmarks is the most recent tweet ID
+  - The `@@unique([externalId, userId])` constraint means we can use `findFirst` for dedup check; alternatively could try/catch a create with unique conflict
+  - Auto-tag pattern: extract a private async helper, call it with `.catch(() => {})` to fire-and-forget without blocking the sync loop
+  - The `autoTagBookmark` helper follows the same pattern as `fetchAndUpdateMetadata` in `lib/actions/bookmark.ts`
+---
+
+## 2026-02-18 - US-002
+- Created `app/api/auth/x/route.ts` with GET handler for X OAuth initiation
+- Generates PKCE code_verifier (96 random bytes → base64url = 128 chars) and S256 code_challenge
+- Generates random state for CSRF protection
+- Signs cookie payload with HMAC-SHA256 using NEXTAUTH_SECRET to prevent tampering
+- Stores signed JSON (codeVerifier + state) in HTTP-only cookie `x_oauth_pkce` (10 min TTL)
+- Redirects to https://twitter.com/i/oauth2/authorize with all required params
+- Returns 401 if user not authenticated via auth(), 500 if env vars missing
+- Files changed: `app/api/auth/x/route.ts`
+- **Learnings for future iterations:**
+  - Cookie signing: use HMAC-SHA256 with NEXTAUTH_SECRET; format is `${hmac}.${base64(payload)}`
+  - PKCE base64url encoding: replace +→-, /→_, strip = padding; use crypto.randomBytes(96) for 128-char verifier
+  - Next.js API routes use NextResponse.redirect() and can set cookies on the response before redirecting
 ---

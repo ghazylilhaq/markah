@@ -15,6 +15,7 @@ import {
   ChevronRight,
   FolderPlus,
   Share2,
+  Settings,
 } from "lucide-react";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
@@ -110,6 +111,7 @@ export function Sidebar({ folders, onNavigate }: { folders: Folder[]; onNavigate
                 ? "/dashboard"
                 : `/dashboard?folder=${item.id}`
             }
+            prefetch={false}
             onClick={onNavigate}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
@@ -198,6 +200,18 @@ export function Sidebar({ folders, onNavigate }: { folders: Folder[]; onNavigate
       {folders.length === 0 && !isCreating && (
         <p className="px-3 py-2 text-xs text-stone-400">No folders yet</p>
       )}
+
+      <div className="mt-4 border-t border-stone-100 pt-2">
+        <Link
+          href="/dashboard/settings"
+          prefetch={false}
+          onClick={onNavigate}
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900"
+        >
+          <Settings className="h-4 w-4" />
+          Settings
+        </Link>
+      </div>
     </nav>
   );
 }
@@ -421,6 +435,7 @@ function FolderItem({
 
           <Link
             href={`/dashboard?folder=${folder.id}`}
+            prefetch={false}
             onClick={onNavigate}
             className="flex flex-1 items-center gap-2 py-2 pr-1 text-sm font-medium min-w-0"
           >

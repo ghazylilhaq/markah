@@ -18,7 +18,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Non-breaking additive migration. All existing bookmarks will have null for source and externalId. The unique constraint on [externalId, userId] should use a conditional/partial approach or handle nulls appropriately since most bookmarks will have null externalId."
     },
     {
@@ -36,7 +36,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Separate from NextAuth to avoid conflicts with existing credentials auth. The offline.access scope is needed to get a refresh token. Use crypto.randomBytes for code_verifier and crypto.createHash('sha256') for code_challenge."
     },
     {
@@ -56,7 +56,7 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "X OAuth 2.0 tokens expire after 2 hours. The refreshXToken helper will be used by the sync service (US-006) and cron route (US-010). Upsert handles reconnection after disconnect."
     },
     {
@@ -77,7 +77,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "The IntegrationCard component should be generic enough for future integrations (Mastodon, Bluesky). The connected state UI will be added in US-009. Check sidebar.tsx for existing navigation item patterns."
     },
     {
@@ -97,7 +97,7 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "X API v2 returns max 100 tweets per request. The service does NOT handle token refresh — callers should refresh tokens before calling. MAX_SYNC_BOOKMARKS env var caps total fetched per sync cycle."
     },
     {
@@ -119,7 +119,7 @@
         "Typecheck passes"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": "This is the basic sync without merge logic or folder creation — those come in US-007. Keep it simple: fetch, dedup by externalId, create, tag. Follow the pattern in addBookmark for AI tag suggestions (fire async, don't block)."
     },
     {
@@ -136,7 +136,7 @@
         "Typecheck passes"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "Merged bookmarks keep their existing folder associations — don't move them into X Bookmarks folder. Only new imports go into X Bookmarks. The folder is created once and reused for subsequent syncs (find by name + userId)."
     },
     {
@@ -153,7 +153,7 @@
         "Typecheck passes"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": ".env.example is gitignored by .env* pattern — must use git add -f. Check existing .env.example format for consistency."
     },
     {
@@ -174,7 +174,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "notes": "Use shadcn Switch for sync toggle. AlertDialog for disconnect confirmation (project convention for destructive actions). The error state and retry button handles the auto-retry pause from US-011."
     },
     {
@@ -193,7 +193,7 @@
         "Typecheck passes"
       ],
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "notes": "The cron route calls the same sync logic as the manual Sync Now button. Extract the core sync logic from syncXBookmarks server action into a reusable function that both can call. Crontab setup: */30 * * * * curl -X POST -H 'Authorization: Bearer $CRON_SECRET' http://localhost:3000/api/cron/sync-x"
     },
     {
@@ -210,7 +210,7 @@
         "Typecheck passes"
       ],
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "notes": "The lastSyncedTweetId resume mechanism from US-006 already handles incremental sync. This story adds the retry counting and auto-disable logic on top. The settings page error UI was already built in US-009."
     },
     {
@@ -229,7 +229,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "notes": "The source field was added to the Bookmark model in US-001. Make sure the bookmark query in getBookmarks includes source in its select clause. Use a simple text '𝕏' character rather than importing an SVG to keep it minimal."
     },
     {
@@ -250,7 +250,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 13,
-      "passes": false,
+      "passes": true,
       "notes": "Follow the same pattern as the existing tag filter bar. The source filter should visually integrate with the existing filter controls in DashboardContent. Check how searchParams flow from page.tsx to DashboardContent."
     }
   ]

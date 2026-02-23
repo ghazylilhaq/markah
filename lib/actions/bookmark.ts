@@ -62,7 +62,8 @@ export async function getBookmarks(
   cursor?: string,
   limit: number = 20,
   filter?: string,
-  tagIds?: string[]
+  tagIds?: string[],
+  source?: string
 ) {
   const user = await requireUser();
 
@@ -70,6 +71,7 @@ export async function getBookmarks(
   const where: {
     userId: string;
     isFavorite?: boolean;
+    source?: string | null;
     folders?: { none: Record<string, never> } | { some: { folderId: string } };
     AND?: Array<{ tags: { some: { tagId: string } } }>;
   } = { userId: user.id };
@@ -80,6 +82,13 @@ export async function getBookmarks(
     where.folders = { none: {} };
   } else if (filter && filter !== "all") {
     where.folders = { some: { folderId: filter } };
+  }
+
+  // Source filter
+  if (source === "x") {
+    where.source = "x";
+  } else if (source === "manual") {
+    where.source = null;
   }
 
   // Tag filter: bookmark must have ALL selected tags (AND logic)
@@ -119,6 +128,7 @@ export async function getBookmarks(
       visitCount: b.visitCount,
       lastVisitedAt: b.lastVisitedAt?.toISOString() ?? null,
       createdAt: b.createdAt.toISOString(),
+      source: b.source,
       tags: b.tags.map((bt) => bt.tag),
     })),
     nextCursor,
@@ -301,14 +311,15 @@ export async function applyTagSuggestion(
 export async function searchBookmarks(
   query: string,
   filter?: string,
-  tagIds?: string[]
+  tagIds?: string[],
+  source?: string
 ) {
   const user = await requireUser();
 
   // Sanitize query: remove special tsquery characters, trim
   const sanitized = query.trim().replace(/[&|!():*<>'"\\]/g, " ").trim();
   if (!sanitized) {
-    return getBookmarks(undefined, 20, filter, tagIds);
+    return getBookmarks(undefined, 20, filter, tagIds, source);
   }
 
   // Build tsquery: split words, join with & (AND), add :* for prefix matching
@@ -330,6 +341,14 @@ export async function searchBookmarks(
     filterCondition = Prisma.sql`AND EXISTS (
       SELECT 1 FROM "BookmarkFolder" bf WHERE bf."bookmarkId" = b."id" AND bf."folderId" = ${filter}
     )`;
+  }
+
+  // Source filter
+  let sourceCondition = Prisma.sql``;
+  if (source === "x") {
+    sourceCondition = Prisma.sql`AND b."source" = 'x'`;
+  } else if (source === "manual") {
+    sourceCondition = Prisma.sql`AND b."source" IS NULL`;
   }
 
   // Tag filter: bookmark must have ALL selected tags (AND logic)
@@ -355,12 +374,13 @@ export async function searchBookmarks(
       visitCount: number;
       lastVisitedAt: Date | null;
       createdAt: Date;
+      source: string | null;
       rank: number;
     }>
   >(Prisma.sql`
     SELECT DISTINCT b."id", b."url", b."title", b."description", b."image",
            b."favicon", b."isFavorite", b."visitCount", b."lastVisitedAt",
-           b."createdAt",
+           b."createdAt", b."source",
            ts_rank(b."search_vector", to_tsquery('english', ${tsquery})) as rank
     FROM "Bookmark" b
     LEFT JOIN "BookmarkTag" bt ON bt."bookmarkId" = b."id"
@@ -371,6 +391,7 @@ export async function searchBookmarks(
         OR t."name" ILIKE ${`%${sanitized}%`}
       )
       ${filterCondition}
+      ${sourceCondition}
       ${tagFilterCondition}
     ORDER BY rank DESC, b."createdAt" DESC
     LIMIT 40
@@ -408,6 +429,7 @@ export async function searchBookmarks(
       visitCount: b.visitCount,
       lastVisitedAt: b.lastVisitedAt?.toISOString() ?? null,
       createdAt: b.createdAt.toISOString(),
+      source: b.source,
       tags: tagsByBookmarkId.get(b.id) ?? [],
     })),
     nextCursor: null,
