@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { refreshXToken } from "@/lib/services/x-auth";
-import { fetchXBookmarks } from "@/lib/services/x-bookmarks";
+import {
+  fetchXBookmarks,
+  fetchXBookmarkFolders,
+  fetchXBookmarksInFolder,
+  type XCollection,
+} from "@/lib/services/x-bookmarks";
 import { getLLMProvider } from "@/lib/services/llm-provider";
 
 async function autoTagBookmark(
@@ -47,15 +52,56 @@ async function getOrCreateXBookmarksFolder(userId: string): Promise<string> {
   });
 
   if (existing) {
+    // Ensure the root folder is marked as sync-managed
+    await prisma.folder.update({
+      where: { id: existing.id },
+      data: { isSyncManaged: true },
+    });
     return existing.id;
   }
 
   const folder = await prisma.folder.create({
-    data: { name: "X Bookmarks", userId },
+    data: { name: "X Bookmarks", userId, isSyncManaged: true },
     select: { id: true },
   });
 
   return folder.id;
+}
+
+export async function getOrCreateXCollectionFolder(
+  userId: string,
+  collection: XCollection,
+  parentFolderId: string
+) {
+  // First: lookup by xCollectionId (idempotent)
+  const byCollectionId = await prisma.folder.findFirst({
+    where: { xCollectionId: collection.id, userId },
+  });
+  if (byCollectionId) return byCollectionId;
+
+  // Check for user-created name conflict under same parent
+  const nameConflict = await prisma.folder.findFirst({
+    where: {
+      name: collection.name,
+      parentId: parentFolderId,
+      userId,
+      isSyncManaged: false,
+    },
+  });
+
+  const folderName = nameConflict
+    ? `${collection.name} (X)`
+    : collection.name;
+
+  return prisma.folder.create({
+    data: {
+      name: folderName,
+      isSyncManaged: true,
+      xCollectionId: collection.id,
+      parentId: parentFolderId,
+      userId,
+    },
+  });
 }
 
 export type SyncResult = {
