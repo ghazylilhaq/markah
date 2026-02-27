@@ -24,9 +24,10 @@ export default async function SettingsPage({
   const params = await searchParams;
   const showConnectedToast = params.connected === "true";
 
-  const xIntegration = await prisma.xIntegration.findUnique({
-    where: { userId: user.id },
-  });
+  const [xIntegration, xSyncStatus] = await Promise.all([
+    prisma.xIntegration.findUnique({ where: { userId: user.id } }),
+    prisma.xSyncStatus.findUnique({ where: { userId: user.id } }),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -63,6 +64,18 @@ export default async function SettingsPage({
                   : null
               }
               lastError={xIntegration.lastError}
+              xSyncStatus={
+                xSyncStatus
+                  ? {
+                      lastSyncedAt: xSyncStatus.lastSyncedAt
+                        ? xSyncStatus.lastSyncedAt.toISOString()
+                        : null,
+                      status: xSyncStatus.status,
+                      errorMessage: xSyncStatus.errorMessage,
+                      collectionsNote: xSyncStatus.collectionsNote,
+                    }
+                  : null
+              }
             />
           )}
         </IntegrationCard>
