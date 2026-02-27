@@ -41,12 +41,14 @@ import {
 import { createFolder, renameFolder, deleteFolder } from "@/lib/actions/folder";
 import { toast } from "sonner";
 import { ShareDialog } from "@/components/share-dialog";
+import { XSyncBadge } from "@/components/x-sync-badge";
 
 export type Folder = {
   id: string;
   name: string;
   parentId: string | null;
   position: number;
+  isSyncManaged: boolean;
   children: Folder[];
 };
 
@@ -441,6 +443,7 @@ function FolderItem({
           >
             <FolderOpen className="h-4 w-4 shrink-0" />
             <span className="truncate">{folder.name}</span>
+            {folder.isSyncManaged && <XSyncBadge />}
           </Link>
         </div>
 

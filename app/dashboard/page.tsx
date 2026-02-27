@@ -8,13 +8,13 @@ import { prisma } from "@/lib/prisma";
 import type { Folder } from "@/components/sidebar";
 
 function buildFolderTree(
-  folders: { id: string; name: string; parentId: string | null; position: number }[]
+  folders: { id: string; name: string; parentId: string | null; position: number; isSyncManaged: boolean }[]
 ): Folder[] {
   const map = new Map<string, Folder>();
   const roots: Folder[] = [];
 
   for (const f of folders) {
-    map.set(f.id, { id: f.id, name: f.name, parentId: f.parentId, position: f.position, children: [] });
+    map.set(f.id, { id: f.id, name: f.name, parentId: f.parentId, position: f.position, isSyncManaged: f.isSyncManaged, children: [] });
   }
 
   for (const f of folders) {
@@ -70,7 +70,7 @@ export default async function DashboardPage({
     getUserTags(),
     prisma.folder.findMany({
       where: { userId: user.id },
-      select: { id: true, name: true, parentId: true, position: true },
+      select: { id: true, name: true, parentId: true, position: true, isSyncManaged: true },
       orderBy: { position: "asc" },
     }),
   ]);
