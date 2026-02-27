@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { refreshXToken } from "@/lib/services/x-auth";
-import { fetchXBookmarks } from "@/lib/services/x-bookmarks";
+import {
+  fetchXBookmarks,
+  fetchXBookmarkFolders,
+  fetchXBookmarksInFolder,
+  type XCollection,
+} from "@/lib/services/x-bookmarks";
 import { getLLMProvider } from "@/lib/services/llm-provider";
 
 async function autoTagBookmark(
@@ -47,15 +52,56 @@ async function getOrCreateXBookmarksFolder(userId: string): Promise<string> {
   });
 
   if (existing) {
+    // Ensure the root folder is marked as sync-managed
+    await prisma.folder.update({
+      where: { id: existing.id },
+      data: { isSyncManaged: true },
+    });
     return existing.id;
   }
 
   const folder = await prisma.folder.create({
-    data: { name: "X Bookmarks", userId },
+    data: { name: "X Bookmarks", userId, isSyncManaged: true },
     select: { id: true },
   });
 
   return folder.id;
+}
+
+export async function getOrCreateXCollectionFolder(
+  userId: string,
+  collection: XCollection,
+  parentFolderId: string
+) {
+  // First: lookup by xCollectionId (idempotent)
+  const byCollectionId = await prisma.folder.findFirst({
+    where: { xCollectionId: collection.id, userId },
+  });
+  if (byCollectionId) return byCollectionId;
+
+  // Check for user-created name conflict under same parent
+  const nameConflict = await prisma.folder.findFirst({
+    where: {
+      name: collection.name,
+      parentId: parentFolderId,
+      userId,
+      isSyncManaged: false,
+    },
+  });
+
+  const folderName = nameConflict
+    ? `${collection.name} (X)`
+    : collection.name;
+
+  return prisma.folder.create({
+    data: {
+      name: folderName,
+      isSyncManaged: true,
+      xCollectionId: collection.id,
+      parentId: parentFolderId,
+      userId,
+    },
+  });
 }
 
 export type SyncResult = {
@@ -64,6 +110,7 @@ export type SyncResult = {
   merged?: number;
   skipped?: number;
   error?: string;
+  partial?: boolean;
 };
 
 /**
@@ -90,8 +137,40 @@ export async function performXSync(userId: string): Promise<SyncResult> {
     sinceId: integration.lastSyncedTweetId ?? undefined,
   });
 
-  // Ensure X Bookmarks folder exists
+  // Ensure X Bookmarks root folder exists
   const xFolderId = await getOrCreateXBookmarksFolder(userId);
+
+  // Fetch X bookmark collections (folders)
+  const { folders: collections, unavailable } = await fetchXBookmarkFolders(
+    accessToken,
+    integration.xUserId
+  );
+
+  // Build tweetId -> Markah folder ID map from collections
+  const tweetToFolderMap = new Map<string, string>();
+  let partial = false;
+
+  if (!unavailable && collections.length > 0) {
+    for (const collection of collections) {
+      const { tweetIds, failed } = await fetchXBookmarksInFolder(
+        accessToken,
+        integration.xUserId,
+        collection.id
+      );
+      if (failed) {
+        partial = true;
+        continue;
+      }
+      const collectionFolder = await getOrCreateXCollectionFolder(
+        userId,
+        collection,
+        xFolderId
+      );
+      for (const tweetId of tweetIds) {
+        tweetToFolderMap.set(tweetId, collectionFolder.id);
+      }
+    }
+  }
 
   let imported = 0;
   let merged = 0;
@@ -108,12 +187,15 @@ export async function performXSync(userId: string): Promise<SyncResult> {
 
       if (existingByExternalId) {
         skipped++;
-        // Still track as seen so we can resume from here next time
         if (!mostRecentTweetId) {
           mostRecentTweetId = xBookmark.tweetId;
         }
         continue;
       }
+
+      // Determine target folder: collection subfolder or root X Bookmarks
+      const targetFolderId =
+        tweetToFolderMap.get(xBookmark.tweetId) ?? xFolderId;
 
       // Check for URL match with existing bookmarks (merge logic)
       const normalizedIncoming = normalizeUrl(xBookmark.url);
@@ -127,11 +209,44 @@ export async function performXSync(userId: string): Promise<SyncResult> {
       );
 
       if (urlMatch) {
-        // Merge: update existing bookmark with X source info, keep existing tags/folders
+        // Merge: update existing bookmark with X source info
         await prisma.bookmark.update({
           where: { id: urlMatch.id },
           data: { source: "x", externalId: xBookmark.tweetId },
         });
+
+        // Update sync-managed folder assignment (do NOT touch user-created folder rows)
+        const managedFolderRows = await prisma.bookmarkFolder.findMany({
+          where: { bookmarkId: urlMatch.id },
+          include: { folder: { select: { isSyncManaged: true } } },
+        });
+        const currentManagedRow = managedFolderRows.find(
+          (row) => row.folder.isSyncManaged
+        );
+        if (currentManagedRow) {
+          if (currentManagedRow.folderId !== targetFolderId) {
+            await prisma.bookmarkFolder.delete({
+              where: {
+                bookmarkId_folderId: {
+                  bookmarkId: urlMatch.id,
+                  folderId: currentManagedRow.folderId,
+                },
+              },
+            });
+            await prisma.bookmarkFolder
+              .create({
+                data: { bookmarkId: urlMatch.id, folderId: targetFolderId },
+              })
+              .catch(() => {});
+          }
+        } else {
+          await prisma.bookmarkFolder
+            .create({
+              data: { bookmarkId: urlMatch.id, folderId: targetFolderId },
+            })
+            .catch(() => {});
+        }
+
         merged++;
       } else {
         // Create title from first 100 chars of tweet text
@@ -152,10 +267,10 @@ export async function performXSync(userId: string): Promise<SyncResult> {
           },
         });
 
-        // Add to X Bookmarks folder
+        // Add to target folder (collection subfolder or root X Bookmarks)
         await prisma.bookmarkFolder
-          .create({ data: { bookmarkId: bookmark.id, folderId: xFolderId } })
-          .catch(() => {}); // Skip if already in folder
+          .create({ data: { bookmarkId: bookmark.id, folderId: targetFolderId } })
+          .catch(() => {});
 
         imported++;
 
@@ -165,8 +280,7 @@ export async function performXSync(userId: string): Promise<SyncResult> {
         );
       }
 
-      // Save progress after each successfully processed bookmark
-      // Track the most recent tweet ID (X returns newest first, so first processed = most recent)
+      // Track the most recent tweet ID (X returns newest first)
       if (!mostRecentTweetId) {
         mostRecentTweetId = xBookmark.tweetId;
       }
@@ -174,9 +288,7 @@ export async function performXSync(userId: string): Promise<SyncResult> {
       // Persist progress incrementally so partial syncs can resume
       await prisma.xIntegration.update({
         where: { userId },
-        data: {
-          lastSyncedTweetId: xBookmark.tweetId,
-        },
+        data: { lastSyncedTweetId: xBookmark.tweetId },
       });
     }
   } catch (err) {
@@ -193,14 +305,68 @@ export async function performXSync(userId: string): Promise<SyncResult> {
       },
     });
 
+    await prisma.xSyncStatus.upsert({
+      where: { userId },
+      update: {
+        status: "error",
+        errorMessage,
+        lastSyncedAt: new Date(),
+        updatedAt: new Date(),
+      },
+      create: {
+        userId,
+        status: "error",
+        errorMessage,
+        lastSyncedAt: new Date(),
+      },
+    });
+
     revalidatePath("/dashboard", "layout");
 
-    // Return partial success if we imported anything before the failure
     if (imported > 0 || merged > 0) {
-      return { success: true, imported, merged, skipped, error: errorMessage };
+      return { success: true, imported, merged, skipped, error: errorMessage, partial };
     }
 
-    return { success: false, error: errorMessage };
+    return { success: false, error: errorMessage, partial };
+  }
+
+  // Upsert XSyncStatus for success or partial
+  if (partial) {
+    await prisma.xSyncStatus.upsert({
+      where: { userId },
+      update: {
+        status: "partial",
+        errorMessage: "Some collections could not be fetched due to rate limits.",
+        lastSyncedAt: new Date(),
+        collectionsNote: unavailable,
+        updatedAt: new Date(),
+      },
+      create: {
+        userId,
+        status: "partial",
+        errorMessage: "Some collections could not be fetched due to rate limits.",
+        lastSyncedAt: new Date(),
+        collectionsNote: unavailable,
+      },
+    });
+  } else {
+    await prisma.xSyncStatus.upsert({
+      where: { userId },
+      update: {
+        status: "success",
+        errorMessage: null,
+        lastSyncedAt: new Date(),
+        collectionsNote: unavailable,
+        updatedAt: new Date(),
+      },
+      create: {
+        userId,
+        status: "success",
+        errorMessage: null,
+        lastSyncedAt: new Date(),
+        collectionsNote: unavailable,
+      },
+    });
   }
 
   // Full success — update lastSyncedAt and reset error state
@@ -216,5 +382,5 @@ export async function performXSync(userId: string): Promise<SyncResult> {
 
   revalidatePath("/dashboard", "layout");
 
-  return { success: true, imported, merged, skipped };
+  return { success: true, imported, merged, skipped, partial };
 }

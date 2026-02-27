@@ -1,3 +1,8 @@
+export type XCollection = {
+  id: string;
+  name: string;
+};
+
 export type XBookmark = {
   tweetId: string;
   text: string;
@@ -20,6 +25,77 @@ type XTweet = {
   author_id: string;
 };
 
+type XFolderBookmarksResponse = {
+  data?: Array<{ id: string }>;
+  meta?: {
+    next_token?: string;
+    pagination_token?: string;
+  };
+};
+
+export async function fetchXBookmarksInFolder(
+  accessToken: string,
+  xUserId: string,
+  folderId: string
+): Promise<{ tweetIds: string[]; failed: boolean }> {
+  const tweetIds: string[] = [];
+  let nextToken: string | undefined;
+  const MAX_IDS = 500;
+  const MAX_RETRIES = 3;
+
+  while (tweetIds.length < MAX_IDS) {
+    const params = new URLSearchParams({
+      bookmark_folder_id: folderId,
+      max_results: "100",
+    });
+    if (nextToken) {
+      params.set("pagination_token", nextToken);
+    }
+
+    const url = `https://api.twitter.com/2/users/${xUserId}/bookmarks?${params.toString()}`;
+
+    let response: Response | null = null;
+    let lastStatus = 0;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.pow(2, attempt - 1) * 1000)
+        );
+      }
+      response = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      lastStatus = response.status;
+      if (lastStatus !== 429) break;
+    }
+
+    if (!response || lastStatus === 429) {
+      return { tweetIds: [], failed: true };
+    }
+
+    if (!response.ok) {
+      console.error(`fetchXBookmarksInFolder: HTTP ${lastStatus}`);
+      return { tweetIds: [], failed: true };
+    }
+
+    const data = (await response.json()) as XFolderBookmarksResponse;
+    for (const tweet of data.data ?? []) {
+      tweetIds.push(tweet.id);
+      if (tweetIds.length >= MAX_IDS) break;
+    }
+
+    const nt = data.meta?.next_token ?? data.meta?.pagination_token;
+    if (nt && tweetIds.length < MAX_IDS) {
+      nextToken = nt;
+    } else {
+      break;
+    }
+  }
+
+  return { tweetIds, failed: false };
+}
+
 type XBookmarksResponse = {
   data?: XTweet[];
   includes?: {
@@ -36,6 +112,41 @@ export type FetchXBookmarksResult = {
   hasMore: boolean;
   nextToken?: string;
 };
+
+type XFoldersResponse = {
+  data?: Array<{ id: string; name: string }>;
+};
+
+export async function fetchXBookmarkFolders(
+  accessToken: string,
+  xUserId: string
+): Promise<{ folders: XCollection[]; unavailable: boolean }> {
+  try {
+    const url = `https://api.twitter.com/2/users/${xUserId}/bookmarks/folders`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (response.status === 403 || response.status === 404) {
+      return { folders: [], unavailable: true };
+    }
+
+    if (!response.ok) {
+      console.error(`fetchXBookmarkFolders: HTTP ${response.status}`);
+      return { folders: [], unavailable: false };
+    }
+
+    const data = (await response.json()) as XFoldersResponse;
+    const folders: XCollection[] = (data.data ?? []).map((f) => ({
+      id: f.id,
+      name: f.name,
+    }));
+    return { folders, unavailable: false };
+  } catch (err) {
+    console.error("fetchXBookmarkFolders error:", err);
+    return { folders: [], unavailable: false };
+  }
+}
 
 export async function fetchXBookmarks(
   accessToken: string,

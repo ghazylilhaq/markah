@@ -43,6 +43,17 @@ export async function disconnectX(): Promise<{
     where: { userId: user.id },
   });
 
+  // Convert all X-managed folders to regular user folders
+  await prisma.folder.updateMany({
+    where: { userId: user.id, isSyncManaged: true },
+    data: { isSyncManaged: false, xCollectionId: null },
+  });
+
+  // Remove stale sync status so it doesn't show on reconnect
+  await prisma.xSyncStatus.deleteMany({
+    where: { userId: user.id },
+  });
+
   revalidatePath("/dashboard/settings");
 
   return { success: true };

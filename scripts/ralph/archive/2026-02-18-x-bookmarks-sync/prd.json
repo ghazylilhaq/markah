@@ -1,0 +1,257 @@
+{
+  "project": "Markah",
+  "branchName": "ralph/x-bookmarks-sync",
+  "description": "X (Twitter) Bookmarks Sync — Connect X account via OAuth 2.0, automatically sync bookmarks into Markah with deduplication, AI tagging, folder mirroring, and background cron sync.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add X integration database schema",
+      "description": "As a developer, I need database tables to store X OAuth credentials and track which bookmarks came from X.",
+      "acceptanceCriteria": [
+        "Create XIntegration model in prisma/schema.prisma with fields: id (cuid), userId (unique, relation to User), xUserId (String), xHandle (String), accessToken (String), refreshToken (String), expiresAt (DateTime), lastSyncedAt (DateTime?), lastSyncedTweetId (String?), syncEnabled (Boolean, default true), retryCount (Int, default 0), lastError (String?), createdAt, updatedAt",
+        "Add one-to-one relation from User to XIntegration (optional, with onDelete: Cascade)",
+        "Add source field (String?) to Bookmark model — 'x' for X imports, null for manual",
+        "Add externalId field (String?) to Bookmark model — stores the X tweet ID",
+        "Add unique constraint @@unique([externalId, userId]) on Bookmark model",
+        "Generate and run migration with npx prisma migrate dev",
+        "Run npx prisma generate to update client",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Non-breaking additive migration. All existing bookmarks will have null for source and externalId. The unique constraint on [externalId, userId] should use a conditional/partial approach or handle nulls appropriately since most bookmarks will have null externalId."
+    },
+    {
+      "id": "US-002",
+      "title": "Create X OAuth initiation route",
+      "description": "As a user, I want to start the X account connection flow so I can authorize Markah to read my bookmarks.",
+      "acceptanceCriteria": [
+        "Create app/api/auth/x/route.ts with GET handler",
+        "Read X_CLIENT_ID and X_REDIRECT_URI from process.env (error if missing)",
+        "Generate PKCE code_verifier (random 128 chars) and code_challenge (S256 hash)",
+        "Generate random state parameter for CSRF protection",
+        "Store code_verifier and state in an HTTP-only cookie (encrypted or signed with NEXTAUTH_SECRET)",
+        "Redirect to https://twitter.com/i/oauth2/authorize with params: response_type=code, client_id, redirect_uri, scope='bookmark.read tweet.read users.read offline.access', state, code_challenge, code_challenge_method=S256",
+        "Require authenticated Markah user via auth() from lib/auth.ts before redirecting",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Separate from NextAuth to avoid conflicts with existing credentials auth. The offline.access scope is needed to get a refresh token. Use crypto.randomBytes for code_verifier and crypto.createHash('sha256') for code_challenge."
+    },
+    {
+      "id": "US-003",
+      "title": "Create X OAuth callback route and token refresh helper",
+      "description": "As a developer, I need the OAuth callback handler and a reusable token refresh helper so we can exchange codes and keep tokens fresh.",
+      "acceptanceCriteria": [
+        "Create app/api/auth/x/callback/route.ts with GET handler",
+        "Validate state parameter matches the one stored in cookie (CSRF protection)",
+        "Exchange authorization code for access_token + refresh_token via POST https://api.twitter.com/2/oauth2/token with PKCE code_verifier",
+        "Use Basic auth header (base64 of X_CLIENT_ID:X_CLIENT_SECRET) for token exchange",
+        "After token exchange, fetch X user info via GET https://api.twitter.com/2/users/me to get id and username",
+        "Upsert XIntegration record for the current Markah user with accessToken, refreshToken, expiresAt (now + expires_in seconds), xUserId, xHandle",
+        "Clear the PKCE/state cookie after successful exchange",
+        "Redirect to /dashboard/settings with ?connected=true query param (for success toast)",
+        "Create lib/services/x-auth.ts with refreshXToken(integration: XIntegration) helper that POSTs to token endpoint with grant_type=refresh_token, updates DB, returns new access token",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "X OAuth 2.0 tokens expire after 2 hours. The refreshXToken helper will be used by the sync service (US-006) and cron route (US-010). Upsert handles reconnection after disconnect."
+    },
+    {
+      "id": "US-004",
+      "title": "Create settings page with sidebar link (disconnected state)",
+      "description": "As a user, I want to access a settings page from the sidebar where I can see the X integration option and connect my account.",
+      "acceptanceCriteria": [
+        "Create app/dashboard/settings/page.tsx as a server component",
+        "Page fetches current user's XIntegration record (if any) from database",
+        "Create components/integration-card.tsx — reusable card component with props: name, icon, description, connected (boolean), children (slot for connected/disconnected content)",
+        "Show X IntegrationCard with X logo/glyph, description 'Sync your X bookmarks automatically', and 'Connect X Account' button (outline variant) when disconnected",
+        "Connect button links to /api/auth/x to start OAuth flow",
+        "If URL has ?connected=true, show success toast on mount ('X account connected successfully')",
+        "Add Settings gear icon link to sidebar.tsx at the bottom (below folder tree, above any user info). Use Settings icon from lucide-react. Link to /dashboard/settings",
+        "Settings link uses the same styling pattern as existing sidebar items",
+        "Add /dashboard/settings to middleware.ts protected routes if needed",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "The IntegrationCard component should be generic enough for future integrations (Mastodon, Bluesky). The connected state UI will be added in US-009. Check sidebar.tsx for existing navigation item patterns."
+    },
+    {
+      "id": "US-005",
+      "title": "Build X API bookmark fetching service",
+      "description": "As a developer, I need a service that fetches bookmarks from the X API v2 with pagination, rate limiting, and sync cap support.",
+      "acceptanceCriteria": [
+        "Create lib/services/x-bookmarks.ts",
+        "Export type XBookmark = { tweetId: string, text: string, authorHandle: string, authorName: string, createdAt: string, url: string }",
+        "Implement fetchXBookmarks(accessToken: string, xUserId: string, options?: { sinceId?: string, maxResults?: number }) that calls GET https://api.twitter.com/2/users/{xUserId}/bookmarks",
+        "Request tweet.fields=id,text,created_at,author_id and expansions=author_id with user.fields=username,name",
+        "Handle pagination via pagination_token — continue fetching until no next_token or total results reach maxResults (default from MAX_SYNC_BOOKMARKS env var, fallback 50)",
+        "Handle 429 rate limit responses: stop pagination and return partial results collected so far",
+        "Construct stable URL as https://x.com/{authorHandle}/status/{tweetId} for each bookmark",
+        "Match author data from includes.users to each tweet by author_id",
+        "Return { bookmarks: XBookmark[], hasMore: boolean, nextToken?: string }",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "X API v2 returns max 100 tweets per request. The service does NOT handle token refresh — callers should refresh tokens before calling. MAX_SYNC_BOOKMARKS env var caps total fetched per sync cycle."
+    },
+    {
+      "id": "US-006",
+      "title": "Implement basic bookmark sync server action",
+      "description": "As a developer, I need a server action that fetches X bookmarks and creates them in Markah, deduplicating by externalId.",
+      "acceptanceCriteria": [
+        "Create lib/actions/x-sync.ts with syncXBookmarks() server action marked 'use server'",
+        "Require authenticated user via requireUser()",
+        "Fetch user's XIntegration record; return error if not connected",
+        "If token is expired (expiresAt < now), call refreshXToken() from lib/services/x-auth.ts",
+        "Call fetchXBookmarks with user's accessToken, xUserId, and sinceId from lastSyncedTweetId",
+        "For each bookmark: skip if a Bookmark with matching externalId exists for this userId",
+        "Create new Bookmark records with: url, title (first 100 chars of tweet text + '...' if truncated), description (full tweet text), source: 'x', externalId: tweetId",
+        "Run AI tag suggestions on each new bookmark using the same pattern as addBookmark in lib/actions/bookmark.ts (async, non-blocking)",
+        "Update XIntegration.lastSyncedAt to now and lastSyncedTweetId to the most recent tweet ID",
+        "Call revalidatePath('/dashboard', 'layout')",
+        "Return { success: true, imported: number, skipped: number }",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "This is the basic sync without merge logic or folder creation — those come in US-007. Keep it simple: fetch, dedup by externalId, create, tag. Follow the pattern in addBookmark for AI tag suggestions (fire async, don't block)."
+    },
+    {
+      "id": "US-007",
+      "title": "Add URL merge logic and auto-create X Bookmarks folder",
+      "description": "As a developer, I need the sync to merge with manually added duplicates and organize imports into an X Bookmarks folder.",
+      "acceptanceCriteria": [
+        "In syncXBookmarks (lib/actions/x-sync.ts), before creating a new bookmark, check if a Bookmark with matching URL already exists for this user",
+        "URL matching: normalize by stripping protocol (http/https), www. prefix, and trailing slash. Treat twitter.com and x.com as equivalent domains",
+        "If URL match found: update existing bookmark with source: 'x' and externalId (merge), keep existing tags and folders. Count as 'merged' not 'imported'",
+        "On first sync (no X Bookmarks folder exists): create a folder named 'X Bookmarks' for the user via prisma.folder.create",
+        "Add all newly created (not merged) bookmarks to the X Bookmarks folder via BookmarkFolder join table",
+        "Update return type to include merged count: { success: true, imported: number, merged: number, skipped: number }",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Merged bookmarks keep their existing folder associations — don't move them into X Bookmarks folder. Only new imports go into X Bookmarks. The folder is created once and reused for subsequent syncs (find by name + userId)."
+    },
+    {
+      "id": "US-008",
+      "title": "Add .env.example entries for X integration",
+      "description": "As a self-hosting user, I need clear documentation of required environment variables for X integration.",
+      "acceptanceCriteria": [
+        "Add X_CLIENT_ID, X_CLIENT_SECRET, X_REDIRECT_URI to .env.example with comments explaining each",
+        "Add CRON_SECRET to .env.example with comment explaining it protects the sync cron endpoint",
+        "Add MAX_SYNC_BOOKMARKS to .env.example with comment explaining it caps imports per sync cycle (default 50)",
+        "Include a comment block explaining users need to create an X Developer App at developer.x.com",
+        "Include the redirect URI format: http://localhost:3000/api/auth/x/callback",
+        "Use git add -f .env.example since .env* is gitignored",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": ".env.example is gitignored by .env* pattern — must use git add -f. Check existing .env.example format for consistency."
+    },
+    {
+      "id": "US-009",
+      "title": "Settings page connected state with sync controls",
+      "description": "As a user, I want to see my connected X account details, trigger manual sync, toggle auto-sync, and disconnect.",
+      "acceptanceCriteria": [
+        "In the settings page, when XIntegration exists: show connected state in IntegrationCard",
+        "Display connected X handle as '@username' with a small X icon",
+        "Show last sync time as relative timestamp (e.g. '5 minutes ago') or 'Never synced' if null",
+        "Add Switch component to toggle syncEnabled — calls a toggleXSync server action that updates XIntegration.syncEnabled",
+        "Add 'Sync Now' Button that calls syncXBookmarks server action. Show loading spinner while syncing. Show toast with results on completion ('Imported 12 bookmarks, merged 3')",
+        "Add 'Disconnect' Button (destructive variant) that opens AlertDialog: 'Your imported bookmarks will be kept. Only the X connection will be removed.'",
+        "On disconnect confirm: call disconnectX server action that deletes XIntegration record (NOT bookmarks). Redirect to settings page.",
+        "Create disconnectX and toggleXSync server actions in lib/actions/x-sync.ts",
+        "If XIntegration has lastError set, show warning banner: 'Last sync failed: [error]. Sync paused.' with a 'Retry' button that resets retryCount and syncEnabled",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "Use shadcn Switch for sync toggle. AlertDialog for disconnect confirmation (project convention for destructive actions). The error state and retry button handles the auto-retry pause from US-011."
+    },
+    {
+      "id": "US-010",
+      "title": "Add periodic background sync via cron API route",
+      "description": "As a user, I want my X bookmarks to sync automatically when an external cron service calls the sync endpoint.",
+      "acceptanceCriteria": [
+        "Create app/api/cron/sync-x/route.ts with POST handler",
+        "Validate Authorization header: must be 'Bearer {CRON_SECRET}'. Return 401 if missing or wrong.",
+        "Query all XIntegration records where syncEnabled is true",
+        "Process users sequentially (for loop, not Promise.all) to respect rate limits",
+        "For each user: refresh token if expired, call syncXBookmarks logic (extract core sync logic into a shared helper that both the server action and cron route can call)",
+        "Skip users whose token refresh fails — set lastError on their XIntegration but don't disable sync",
+        "Log sync results per user via console.log (imported count, errors)",
+        "Return JSON response with summary: { synced: number, failed: number, skipped: number }",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "The cron route calls the same sync logic as the manual Sync Now button. Extract the core sync logic from syncXBookmarks server action into a reusable function that both can call. Crontab setup: */30 * * * * curl -X POST -H 'Authorization: Bearer $CRON_SECRET' http://localhost:3000/api/cron/sync-x"
+    },
+    {
+      "id": "US-011",
+      "title": "Add sync error recovery and auto-retry",
+      "description": "As a developer, I need the sync to handle failures gracefully, resume from where it left off, and auto-retry with backoff.",
+      "acceptanceCriteria": [
+        "In the core sync logic: wrap the fetch+import loop in try/catch",
+        "On partial success (some bookmarks imported before failure): save progress — update lastSyncedTweetId to the last successfully imported tweet",
+        "On failure: increment retryCount on XIntegration, set lastError to error message string",
+        "In cron route: if retryCount >= 3, set syncEnabled to false and lastError to 'Sync paused after 3 consecutive failures. Re-enable from settings.'",
+        "Reset retryCount to 0 and lastError to null on any successful sync (even partial)",
+        "Next sync (manual or cron) automatically resumes from lastSyncedTweetId — no duplicate work",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "The lastSyncedTweetId resume mechanism from US-006 already handles incremental sync. This story adds the retry counting and auto-disable logic on top. The settings page error UI was already built in US-009."
+    },
+    {
+      "id": "US-012",
+      "title": "Display X bookmark source badge on cards",
+      "description": "As a user, I want to see which bookmarks came from X so I can distinguish them from manually added ones.",
+      "acceptanceCriteria": [
+        "In bookmark-card.tsx: show a small '𝕏' text badge (or X SVG icon) when bookmark.source === 'x'",
+        "Badge styled as a subtle grayscale indicator — small font, muted color, positioned near the domain/favicon area",
+        "Clicking the badge opens the bookmark's original URL on X in a new tab (same as the bookmark URL for X imports)",
+        "In bookmark-list-item.tsx: show same badge inline near the domain text",
+        "Badge does not appear for bookmarks where source is null (manual bookmarks)",
+        "Ensure the Bookmark type/interface passed to card components includes the source field",
+        "Update getBookmarks in lib/actions/bookmark.ts to include source field in the select/return",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 12,
+      "passes": true,
+      "notes": "The source field was added to the Bookmark model in US-001. Make sure the bookmark query in getBookmarks includes source in its select clause. Use a simple text '𝕏' character rather than importing an SVG to keep it minimal."
+    },
+    {
+      "id": "US-013",
+      "title": "Add source filter to bookmark list",
+      "description": "As a user, I want to filter my bookmarks by source (all, manual, X) so I can browse just my X imports.",
+      "acceptanceCriteria": [
+        "Add source filter to DashboardContent filter bar — use a small DropdownMenu or segmented button group",
+        "Options: 'All Sources' (default), 'Manual', 'X'",
+        "Filter persists in URL search params as ?source=x or ?source=manual",
+        "Update getBookmarks server action to accept optional source parameter",
+        "When source='x': filter where source equals 'x'",
+        "When source='manual': filter where source is null",
+        "When source is not set or 'all': no source filter (show everything)",
+        "Source filter combines correctly with existing text search, tag filter, and folder filter",
+        "Show appropriate empty state message when no bookmarks match the source filter",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 13,
+      "passes": true,
+      "notes": "Follow the same pattern as the existing tag filter bar. The source filter should visually integrate with the existing filter controls in DashboardContent. Check how searchParams flow from page.tsx to DashboardContent."
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -23,11 +23,19 @@ import {
   retryXSync,
 } from "@/lib/actions/x-sync";
 
+interface XSyncStatusProps {
+  lastSyncedAt: string | null;
+  status: string | null;
+  errorMessage: string | null;
+  collectionsNote: boolean;
+}
+
 interface XIntegrationControlsProps {
   xHandle: string;
   syncEnabled: boolean;
   lastSyncedAt: string | null; // ISO string
   lastError: string | null;
+  xSyncStatus: XSyncStatusProps | null;
 }
 
 function formatRelativeTime(isoString: string): string {
@@ -50,6 +58,7 @@ export function XIntegrationControls({
   syncEnabled: initialSyncEnabled,
   lastSyncedAt,
   lastError,
+  xSyncStatus,
 }: XIntegrationControlsProps) {
   const router = useRouter();
   const [syncing, startSync] = useTransition();
@@ -127,13 +136,29 @@ export function XIntegrationControls({
         </div>
       )}
 
+      {/* Partial sync banner */}
+      {xSyncStatus?.status === "partial" && (
+        <div className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <p>Some collections could not be fetched (rate limit). Will retry next sync.</p>
+        </div>
+      )}
+
+      {/* Collections note banner */}
+      {xSyncStatus?.collectionsNote && (
+        <div className="flex items-start gap-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+          <p>X bookmark collections sync requires a higher X API tier. Bookmarks are still syncing to the X Bookmarks folder.</p>
+        </div>
+      )}
+
       {/* Handle and last sync */}
       <div className="flex items-center justify-between text-sm">
         <div>
           <span className="font-medium text-stone-900">@{xHandle}</span>
           <span className="ml-2 text-stone-400">
-            {lastSyncedAt
-              ? `Last synced ${formatRelativeTime(lastSyncedAt)}`
+            {(xSyncStatus?.lastSyncedAt ?? lastSyncedAt)
+              ? `Last synced ${formatRelativeTime((xSyncStatus?.lastSyncedAt ?? lastSyncedAt)!)}`
               : "Never synced"}
           </span>
         </div>
