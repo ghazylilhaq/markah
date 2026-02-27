@@ -1,3 +1,8 @@
+export type XCollection = {
+  id: string;
+  name: string;
+};
+
 export type XBookmark = {
   tweetId: string;
   text: string;
@@ -36,6 +41,41 @@ export type FetchXBookmarksResult = {
   hasMore: boolean;
   nextToken?: string;
 };
+
+type XFoldersResponse = {
+  data?: Array<{ id: string; name: string }>;
+};
+
+export async function fetchXBookmarkFolders(
+  accessToken: string,
+  xUserId: string
+): Promise<{ folders: XCollection[]; unavailable: boolean }> {
+  try {
+    const url = `https://api.twitter.com/2/users/${xUserId}/bookmarks/folders`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (response.status === 403 || response.status === 404) {
+      return { folders: [], unavailable: true };
+    }
+
+    if (!response.ok) {
+      console.error(`fetchXBookmarkFolders: HTTP ${response.status}`);
+      return { folders: [], unavailable: false };
+    }
+
+    const data = (await response.json()) as XFoldersResponse;
+    const folders: XCollection[] = (data.data ?? []).map((f) => ({
+      id: f.id,
+      name: f.name,
+    }));
+    return { folders, unavailable: false };
+  } catch (err) {
+    console.error("fetchXBookmarkFolders error:", err);
+    return { folders: [], unavailable: false };
+  }
+}
 
 export async function fetchXBookmarks(
   accessToken: string,
