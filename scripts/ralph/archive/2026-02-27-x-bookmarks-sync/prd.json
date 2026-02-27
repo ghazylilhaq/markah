@@ -1,0 +1,159 @@
+{
+  "project": "Markah",
+  "branchName": "ralph/x-bookmarks-folder-sync",
+  "description": "X Bookmark Folder Sync — Mirror X bookmark collections as Markah subfolders under 'X Bookmarks', with daily background sync, partial-sync resilience, X badge on managed folders, and sync status in settings.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add isSyncManaged/xCollectionId to Folder and create XSyncStatus model",
+      "description": "As a developer, I need schema support to track which folders are managed by X sync and to persist per-user sync status.",
+      "acceptanceCriteria": [
+        "Add `isSyncManaged Boolean @default(false)` field to the Folder model in prisma/schema.prisma",
+        "Add `xCollectionId String?` field to the Folder model (stores the X collection ID; null for user-created folders)",
+        "Create XSyncStatus model with fields: id (cuid), userId (String, @unique), lastSyncedAt (DateTime?), status (String? — 'success' | 'partial' | 'error'), errorMessage (String?), collectionsNote (Boolean @default(false)), createdAt, updatedAt",
+        "Add relation `xSyncStatus XSyncStatus?` to User model and `user User @relation(...)` back-relation on XSyncStatus with onDelete: Cascade",
+        "Create migration file at prisma/migrations/20260227_x_folder_sync/migration.sql with ALTER TABLE statements for new Folder columns and CREATE TABLE for XSyncStatus",
+        "Run `npx prisma generate` to update Prisma client",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Implement fetchXBookmarkFolders() in x-bookmarks.ts",
+      "description": "As a developer, I need to fetch a user's X bookmark collections from the X API v2.",
+      "acceptanceCriteria": [
+        "Add `XCollection` type to lib/services/x-bookmarks.ts: `{ id: string, name: string }`",
+        "Implement `fetchXBookmarkFolders(accessToken: string, xUserId: string): Promise<{ folders: XCollection[], unavailable: boolean }>` in lib/services/x-bookmarks.ts",
+        "Function calls `GET https://api.twitter.com/2/users/{xUserId}/bookmarks/folders` with Bearer token auth",
+        "Returns `{ folders: parsed array, unavailable: false }` on success",
+        "Returns `{ folders: [], unavailable: true }` when the response status is 403 or 404 (API tier restriction)",
+        "Returns `{ folders: [], unavailable: false }` on any other network/parse error (logs error to console)",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Implement fetchXBookmarksInFolder() with pagination and retry backoff",
+      "description": "As a developer, I need to fetch the tweet IDs belonging to a specific X collection, with rate-limit retry support.",
+      "acceptanceCriteria": [
+        "Implement `fetchXBookmarksInFolder(accessToken: string, xUserId: string, folderId: string): Promise<{ tweetIds: string[], failed: boolean }>` in lib/services/x-bookmarks.ts",
+        "Function calls `GET https://api.twitter.com/2/users/{xUserId}/bookmarks?bookmark_folder_id={folderId}` with Bearer token auth",
+        "Paginates via `next_token` / `pagination_token` until no next token or 500 total IDs collected",
+        "On HTTP 429: retries up to 3 times with exponential backoff — waits 1s before retry 1, 2s before retry 2, 4s before retry 3",
+        "If all 3 retries fail: returns `{ tweetIds: [], failed: true }`",
+        "On success: returns `{ tweetIds: [...], failed: false }`",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Add getOrCreateXCollectionFolder() helper in x-sync-core.ts",
+      "description": "As a developer, I need an idempotent helper that finds or creates a Markah subfolder for an X collection, handling name conflicts.",
+      "acceptanceCriteria": [
+        "Add `getOrCreateXCollectionFolder(userId: string, collection: XCollection, parentFolderId: string): Promise<Folder>` to lib/services/x-sync-core.ts",
+        "First lookup: `prisma.folder.findFirst({ where: { xCollectionId: collection.id, userId } })` — return if found",
+        "If not found: check for a user-created folder with the same name under the same parent: `prisma.folder.findFirst({ where: { name: collection.name, parentId: parentFolderId, userId, isSyncManaged: false } })`",
+        "If a user-created name conflict exists: create folder with name `${collection.name} (X)`, isSyncManaged: true, xCollectionId: collection.id, parentId: parentFolderId, userId",
+        "If no conflict: create folder with name `collection.name`, isSyncManaged: true, xCollectionId: collection.id, parentId: parentFolderId, userId",
+        "Calling the function twice with the same collection.id returns the same folder without creating a duplicate",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Update syncXBookmarksForUser() to assign bookmarks to X collection subfolders",
+      "description": "As a user, I want bookmarks that belong to an X collection to automatically appear in the matching Markah subfolder.",
+      "acceptanceCriteria": [
+        "In lib/services/x-sync-core.ts, after fetching X bookmarks, call `fetchXBookmarkFolders(accessToken, xUserId)` and store the `unavailable` flag",
+        "For each collection returned, call `fetchXBookmarksInFolder(accessToken, xUserId, collection.id)` — build a `Map<tweetId, Markah folderId>` using `getOrCreateXCollectionFolder()`; if a collection's fetch `failed`, skip it and mark sync as partial",
+        "When creating a new bookmark: if its tweetId is in the map, add a `BookmarkFolder` row pointing to the collection subfolder; otherwise add it to the root 'X Bookmarks' folder as before",
+        "When processing an existing (merged) bookmark: find any existing `BookmarkFolder` rows where `folder.isSyncManaged === true`; if the target folder differs, delete the old row and insert the new one; do NOT touch BookmarkFolder rows where `folder.isSyncManaged === false`",
+        "If `fetchXBookmarkFolders()` returns `unavailable: true` OR returns an empty `folders` array, proceed normally (all bookmarks go to X Bookmarks root) — no error thrown",
+        "Sync result includes a `partial: boolean` field — true if any collection fetch failed",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Persist XSyncStatus record after each sync",
+      "description": "As a developer, I need each sync to write a status record so users can see last-sync time, errors, and partial results in settings.",
+      "acceptanceCriteria": [
+        "At the end of `performXSync()` in lib/services/x-sync-core.ts, upsert an XSyncStatus record for the user",
+        "On full success: set status='success', errorMessage=null, lastSyncedAt=now(), collectionsNote=false (unless unavailable was true, then set collectionsNote=true)",
+        "On partial sync (partial: true from US-005): set status='partial', errorMessage='Some collections could not be fetched due to rate limits.', lastSyncedAt=now(), collectionsNote per unavailable flag",
+        "On thrown error (catch block): set status='error', errorMessage=error.message, lastSyncedAt=now()",
+        "Use `prisma.xSyncStatus.upsert({ where: { userId }, update: {...}, create: {...} })` for idempotency",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Add X badge component and render it on sync-managed folders in sidebar",
+      "description": "As a user, I want to visually distinguish X-managed folders in the sidebar so I know which folders are controlled by sync.",
+      "acceptanceCriteria": [
+        "Create components/x-sync-badge.tsx — a small inline component that renders an '𝕏' character (or X icon) with a shadcn/ui Tooltip saying 'Synced from X — edits may be overwritten on next sync'",
+        "In the sidebar Folder type (components/sidebar.tsx), add `isSyncManaged: boolean` to the Folder type definition",
+        "Update the Prisma folder query in app/dashboard/layout.tsx to include `isSyncManaged` in the folder select",
+        "In the sidebar FolderItem component (or wherever folder names are rendered), render `<XSyncBadge />` immediately after the folder name when `folder.isSyncManaged === true`",
+        "The 'X Bookmarks' parent folder already has isSyncManaged set by the existing sync logic — update the `getOrCreateXBookmarksFolder()` helper in x-sync-core.ts to also set `isSyncManaged: true` when creating or updating it",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Display sync status and collections note in settings page",
+      "description": "As a user, I want the settings page to show when my X bookmarks last synced, whether the sync was partial or errored, and if X collections require a higher API tier.",
+      "acceptanceCriteria": [
+        "In app/dashboard/settings/page.tsx, fetch the XSyncStatus record for the current user alongside the XIntegration record",
+        "Pass XSyncStatus fields (lastSyncedAt as ISO string, status, errorMessage, collectionsNote) to the x-integration-controls client component as props",
+        "In x-integration-controls.tsx: replace the existing 'Last synced' timestamp with one derived from XSyncStatus.lastSyncedAt (falls back to XIntegration.lastSyncedAt if XSyncStatus is null)",
+        "If status === 'partial': show an amber info banner below the last-sync line: 'Some collections could not be fetched (rate limit). Will retry next sync.'",
+        "If status === 'error': existing error banner behavior is unchanged (already handled via XIntegration.lastError)",
+        "If collectionsNote === true: show a blue info banner: 'X bookmark collections sync requires a higher X API tier. Bookmarks are still syncing to the X Bookmarks folder.'",
+        "Banners are dismissed only on the next successful full sync (no manual dismiss button needed)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Update disconnectX to convert X-managed folders to regular Markah folders",
+      "description": "As a user, I want disconnecting my X account to preserve my synced folders and bookmarks as regular Markah data.",
+      "acceptanceCriteria": [
+        "In the `disconnectX` server action in lib/actions/x-sync.ts, after deleting the XIntegration record, run: `prisma.folder.updateMany({ where: { userId, isSyncManaged: true }, data: { isSyncManaged: false, xCollectionId: null } })`",
+        "Also upsert/delete the user's XSyncStatus record on disconnect (clear it so stale status doesn't show on reconnect): `prisma.xSyncStatus.deleteMany({ where: { userId } })`",
+        "Bookmarks and folder structure remain intact after disconnect — only the management flags are cleared",
+        "After disconnect, the settings page no longer shows sync status banners (XSyncStatus is gone)",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

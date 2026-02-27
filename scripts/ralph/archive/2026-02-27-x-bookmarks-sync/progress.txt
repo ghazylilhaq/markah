@@ -1,0 +1,18 @@
+## Codebase Patterns
+- Database: Supabase PostgreSQL is remote — `prisma migrate dev` requires DB connection; create migrations manually in `prisma/migrations/YYYYMMDD_description/migration.sql` and apply with `npx prisma migrate deploy`
+- After schema changes: always run `npx prisma generate` (no DB needed) to update the Prisma client
+- TypeScript check: `npx tsc --noEmit` (no output = passes)
+- Unique indexes on nullable columns: PostgreSQL allows multiple NULLs naturally; `@@unique([externalId, userId])` in schema is safe for nullable externalId
+- .env* is gitignored — use `git add -f` for .env.example
+- Extract shared business logic into `lib/services/` (not `lib/actions/`) — actions enforce auth, services are pure logic
+- Pass Date objects as `.toISOString()` strings from server → client components (Next.js serialization boundary)
+- `useTransition` is preferred over `useState(loading)` for server action calls — gives concurrent mode benefits
+- Settings page uses `await searchParams` (Next.js 16 pattern — searchParams is a Promise in page components)
+- For "show toast on mount" in server-rendered pages: extract a `"use client"` child component that calls `useEffect` → `toast()`
+- X API v2 bookmark endpoint: `GET /2/users/{xUserId}/bookmarks` with Bearer token auth; build Map<author_id, XUser> from includes.users for O(1) author lookup
+- Prisma `{ increment: 1 }` operator for atomic increments without read-modify-write
+- X badge character: 𝕏 (U+1D54F) renders as the double-struck X glyph — no SVG needed for simple badge
+
+# Ralph Progress Log
+Started: Thu Feb 27 2026
+---
