@@ -19,6 +19,7 @@ model User {
   folders       Folder[]
   tags          Tag[]
   xIntegration  XIntegration?
+  xSyncStatus   XSyncStatus?
 }
 
 model Bookmark {
@@ -49,16 +50,18 @@ model Bookmark {
 }
 
 model Folder {
-  id        String   @id @default(cuid())
-  name      String
-  parentId  String?
-  parent    Folder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children  Folder[] @relation("FolderTree")
-  isPublic  Boolean  @default(false)
-  shareId   String?  @unique
-  position  Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  parentId        String?
+  parent          Folder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children        Folder[] @relation("FolderTree")
+  isPublic        Boolean  @default(false)
+  shareId         String?  @unique
+  position        Int      @default(0)
+  isSyncManaged   Boolean  @default(false)
+  xCollectionId   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -114,4 +117,16 @@ model XIntegration {
   lastError          String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+}
+
+model XSyncStatus {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastSyncedAt    DateTime?
+  status          String?
+  errorMessage    String?
+  collectionsNote Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
