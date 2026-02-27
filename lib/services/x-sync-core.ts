@@ -110,6 +110,7 @@ export type SyncResult = {
   merged?: number;
   skipped?: number;
   error?: string;
+  partial?: boolean;
 };
 
 /**
@@ -136,8 +137,40 @@ export async function performXSync(userId: string): Promise<SyncResult> {
     sinceId: integration.lastSyncedTweetId ?? undefined,
   });
 
-  // Ensure X Bookmarks folder exists
+  // Ensure X Bookmarks root folder exists
   const xFolderId = await getOrCreateXBookmarksFolder(userId);
+
+  // Fetch X bookmark collections (folders)
+  const { folders: collections, unavailable } = await fetchXBookmarkFolders(
+    accessToken,
+    integration.xUserId
+  );
+
+  // Build tweetId -> Markah folder ID map from collections
+  const tweetToFolderMap = new Map<string, string>();
+  let partial = false;
+
+  if (!unavailable && collections.length > 0) {
+    for (const collection of collections) {
+      const { tweetIds, failed } = await fetchXBookmarksInFolder(
+        accessToken,
+        integration.xUserId,
+        collection.id
+      );
+      if (failed) {
+        partial = true;
+        continue;
+      }
+      const collectionFolder = await getOrCreateXCollectionFolder(
+        userId,
+        collection,
+        xFolderId
+      );
+      for (const tweetId of tweetIds) {
+        tweetToFolderMap.set(tweetId, collectionFolder.id);
+      }
+    }
+  }
 
   let imported = 0;
   let merged = 0;
@@ -154,12 +187,15 @@ export async function performXSync(userId: string): Promise<SyncResult> {
 
       if (existingByExternalId) {
         skipped++;
-        // Still track as seen so we can resume from here next time
         if (!mostRecentTweetId) {
           mostRecentTweetId = xBookmark.tweetId;
         }
         continue;
       }
+
+      // Determine target folder: collection subfolder or root X Bookmarks
+      const targetFolderId =
+        tweetToFolderMap.get(xBookmark.tweetId) ?? xFolderId;
 
       // Check for URL match with existing bookmarks (merge logic)
       const normalizedIncoming = normalizeUrl(xBookmark.url);
@@ -173,11 +209,44 @@ export async function performXSync(userId: string): Promise<SyncResult> {
       );
 
       if (urlMatch) {
-        // Merge: update existing bookmark with X source info, keep existing tags/folders
+        // Merge: update existing bookmark with X source info
         await prisma.bookmark.update({
           where: { id: urlMatch.id },
           data: { source: "x", externalId: xBookmark.tweetId },
         });
+
+        // Update sync-managed folder assignment (do NOT touch user-created folder rows)
+        const managedFolderRows = await prisma.bookmarkFolder.findMany({
+          where: { bookmarkId: urlMatch.id },
+          include: { folder: { select: { isSyncManaged: true } } },
+        });
+        const currentManagedRow = managedFolderRows.find(
+          (row) => row.folder.isSyncManaged
+        );
+        if (currentManagedRow) {
+          if (currentManagedRow.folderId !== targetFolderId) {
+            await prisma.bookmarkFolder.delete({
+              where: {
+                bookmarkId_folderId: {
+                  bookmarkId: urlMatch.id,
+                  folderId: currentManagedRow.folderId,
+                },
+              },
+            });
+            await prisma.bookmarkFolder
+              .create({
+                data: { bookmarkId: urlMatch.id, folderId: targetFolderId },
+              })
+              .catch(() => {});
+          }
+        } else {
+          await prisma.bookmarkFolder
+            .create({
+              data: { bookmarkId: urlMatch.id, folderId: targetFolderId },
+            })
+            .catch(() => {});
+        }
+
         merged++;
       } else {
         // Create title from first 100 chars of tweet text
@@ -198,10 +267,10 @@ export async function performXSync(userId: string): Promise<SyncResult> {
           },
         });
 
-        // Add to X Bookmarks folder
+        // Add to target folder (collection subfolder or root X Bookmarks)
         await prisma.bookmarkFolder
-          .create({ data: { bookmarkId: bookmark.id, folderId: xFolderId } })
-          .catch(() => {}); // Skip if already in folder
+          .create({ data: { bookmarkId: bookmark.id, folderId: targetFolderId } })
+          .catch(() => {});
 
         imported++;
 
@@ -211,8 +280,7 @@ export async function performXSync(userId: string): Promise<SyncResult> {
         );
       }
 
-      // Save progress after each successfully processed bookmark
-      // Track the most recent tweet ID (X returns newest first, so first processed = most recent)
+      // Track the most recent tweet ID (X returns newest first)
       if (!mostRecentTweetId) {
         mostRecentTweetId = xBookmark.tweetId;
       }
@@ -220,9 +288,7 @@ export async function performXSync(userId: string): Promise<SyncResult> {
       // Persist progress incrementally so partial syncs can resume
       await prisma.xIntegration.update({
         where: { userId },
-        data: {
-          lastSyncedTweetId: xBookmark.tweetId,
-        },
+        data: { lastSyncedTweetId: xBookmark.tweetId },
       });
     }
   } catch (err) {
@@ -241,12 +307,11 @@ export async function performXSync(userId: string): Promise<SyncResult> {
 
     revalidatePath("/dashboard", "layout");
 
-    // Return partial success if we imported anything before the failure
     if (imported > 0 || merged > 0) {
-      return { success: true, imported, merged, skipped, error: errorMessage };
+      return { success: true, imported, merged, skipped, error: errorMessage, partial };
     }
 
-    return { success: false, error: errorMessage };
+    return { success: false, error: errorMessage, partial };
   }
 
   // Full success — update lastSyncedAt and reset error state
@@ -262,5 +327,5 @@ export async function performXSync(userId: string): Promise<SyncResult> {
 
   revalidatePath("/dashboard", "layout");
 
-  return { success: true, imported, merged, skipped };
+  return { success: true, imported, merged, skipped, partial };
 }
