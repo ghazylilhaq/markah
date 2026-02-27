@@ -305,6 +305,22 @@ export async function performXSync(userId: string): Promise<SyncResult> {
       },
     });
 
+    await prisma.xSyncStatus.upsert({
+      where: { userId },
+      update: {
+        status: "error",
+        errorMessage,
+        lastSyncedAt: new Date(),
+        updatedAt: new Date(),
+      },
+      create: {
+        userId,
+        status: "error",
+        errorMessage,
+        lastSyncedAt: new Date(),
+      },
+    });
+
     revalidatePath("/dashboard", "layout");
 
     if (imported > 0 || merged > 0) {
@@ -312,6 +328,45 @@ export async function performXSync(userId: string): Promise<SyncResult> {
     }
 
     return { success: false, error: errorMessage, partial };
+  }
+
+  // Upsert XSyncStatus for success or partial
+  if (partial) {
+    await prisma.xSyncStatus.upsert({
+      where: { userId },
+      update: {
+        status: "partial",
+        errorMessage: "Some collections could not be fetched due to rate limits.",
+        lastSyncedAt: new Date(),
+        collectionsNote: unavailable,
+        updatedAt: new Date(),
+      },
+      create: {
+        userId,
+        status: "partial",
+        errorMessage: "Some collections could not be fetched due to rate limits.",
+        lastSyncedAt: new Date(),
+        collectionsNote: unavailable,
+      },
+    });
+  } else {
+    await prisma.xSyncStatus.upsert({
+      where: { userId },
+      update: {
+        status: "success",
+        errorMessage: null,
+        lastSyncedAt: new Date(),
+        collectionsNote: unavailable,
+        updatedAt: new Date(),
+      },
+      create: {
+        userId,
+        status: "success",
+        errorMessage: null,
+        lastSyncedAt: new Date(),
+        collectionsNote: unavailable,
+      },
+    });
   }
 
   // Full success — update lastSyncedAt and reset error state
